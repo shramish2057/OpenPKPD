@@ -87,6 +87,30 @@ struct DirectEmaxParams
     EC50::Float64
 end
 
+export IndirectResponseTurnover, IndirectResponseTurnoverParams
+
+"""
+Indirect response turnover PD model with inhibition of Kout.
+
+States:
+- R(t): response
+
+Effect:
+I(C) = (Imax * C) / (IC50 + C)
+
+Dynamics:
+dR/dt = Kin - Kout * (1 - I(C)) * R
+"""
+struct IndirectResponseTurnover <: PDModelKind end
+
+struct IndirectResponseTurnoverParams
+    Kin::Float64
+    Kout::Float64
+    R0::Float64
+    Imax::Float64
+    IC50::Float64
+end
+
 """
 PD specification container.
 
