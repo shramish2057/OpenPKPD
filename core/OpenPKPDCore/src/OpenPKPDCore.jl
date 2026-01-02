@@ -3,7 +3,8 @@ module OpenPKPDCore
 using SciMLBase
 using DifferentialEquations
 
-export ModelKind, OneCompIVBolus, ModelSpec, SolverSpec, SimGrid, SimResult, simulate
+export ModelKind, OneCompIVBolus, OneCompIVBolusParams, DoseEvent, ModelSpec
+export SolverSpec, SimGrid, SimResult, simulate
 
 # -------------------------
 # Model definitions
@@ -13,40 +14,41 @@ abstract type ModelKind end
 
 """
 One-compartment IV bolus PK model.
-
-State:
-- A(t): amount in central compartment
-
-Parameters:
-- CL: clearance
-- V: central volume
-
-Dynamics:
-dA/dt = -(CL/V) * A
-
-Observation:
-C(t) = A(t) / V
 """
 struct OneCompIVBolus <: ModelKind end
 
 """
-Generic model specification container.
+A single dosing event.
 
 Rules:
-- spec is pure data
-- no solver configuration inside model spec
+- time must be >= 0
+- amount must be > 0
 """
-struct ModelSpec{K<:ModelKind}
+struct DoseEvent
+    time::Float64
+    amount::Float64
+end
+
+"""
+Typed parameters for OneCompIVBolus.
+"""
+struct OneCompIVBolusParams
+    CL::Float64
+    V::Float64
+end
+
+"""
+Generic model specification container.
+"""
+struct ModelSpec{K<:ModelKind,P}
     kind::K
     name::String
-    params::Dict{Symbol,Float64}
-    dose_amount::Float64
-    dose_time::Float64
+    params::P
+    doses::Vector{DoseEvent}
 end
 
 """
 Solver specification is pure data.
-No hidden defaults in the engine.
 """
 struct SolverSpec
     alg::Symbol
@@ -57,7 +59,6 @@ end
 
 """
 Simulation time grid definition.
-We require explicit save times for deterministic output shapes.
 """
 struct SimGrid
     t0::Float64
@@ -67,7 +68,6 @@ end
 
 """
 Simulation result.
-Contains deterministic outputs and metadata.
 """
 struct SimResult
     t::Vector{Float64}
@@ -80,19 +80,6 @@ end
 # Validation helpers
 # -------------------------
 
-function _require(keys::Vector{Symbol}, params::Dict{Symbol,Float64})
-    missing = Symbol[]
-    for k in keys
-        if !haskey(params, k)
-            push!(missing, k)
-        end
-    end
-    if !isempty(missing)
-        error("Missing required parameters: $(missing)")
-    end
-    return nothing
-end
-
 function _require_positive(name::String, x::Float64)
     if !(x > 0.0)
         error("Expected positive value for $(name), got $(x)")
@@ -100,18 +87,26 @@ function _require_positive(name::String, x::Float64)
     return nothing
 end
 
-function validate(spec::ModelSpec{OneCompIVBolus})
-    _require([:CL, :V], spec.params)
-
-    CL = spec.params[:CL]
-    V = spec.params[:V]
+function validate(spec::ModelSpec{OneCompIVBolus,OneCompIVBolusParams})
+    CL = spec.params.CL
+    V = spec.params.V
 
     _require_positive("CL", CL)
     _require_positive("V", V)
-    _require_positive("dose_amount", spec.dose_amount)
 
-    if spec.dose_time < 0.0
-        error("dose_time must be >= 0, got $(spec.dose_time)")
+    if isempty(spec.doses)
+        error("At least one DoseEvent is required")
+    end
+
+    for (i, d) in enumerate(spec.doses)
+        if d.time < 0.0
+            error("DoseEvent time must be >= 0 at index $(i), got $(d.time)")
+        end
+        _require_positive("DoseEvent amount at index $(i)", d.amount)
+    end
+
+    if !issorted([d.time for d in spec.doses])
+        error("Dose events must be sorted by time ascending")
     end
 
     return nothing
@@ -165,9 +160,7 @@ end
 # -------------------------
 
 function _ode_onecomp_ivbolus!(dA, A, p, t)
-    CL = p.CL
-    V = p.V
-    dA[1] = -(CL / V) * A[1]
+    dA[1] = -(p.CL / p.V) * A[1]
     return nothing
 end
 
@@ -175,20 +168,22 @@ end
 # Main simulation entrypoint
 # -------------------------
 
-function simulate(spec::ModelSpec{OneCompIVBolus}, grid::SimGrid, solver::SolverSpec)
+function simulate(
+    spec::ModelSpec{OneCompIVBolus,OneCompIVBolusParams}, grid::SimGrid, solver::SolverSpec
+)
     validate(spec)
     validate(grid)
     validate(solver)
 
-    CL = spec.params[:CL]
-    V = spec.params[:V]
+    CL = spec.params.CL
+    V = spec.params.V
 
-    # Dose handling for IV bolus:
-    # For v1 we support one bolus at dose_time.
-    # Implemented as: initial condition at t0 plus event if dose_time > t0.
+    # Apply doses at t0
     A0 = 0.0
-    if spec.dose_time == grid.t0
-        A0 += spec.dose_amount
+    for d in spec.doses
+        if d.time == grid.t0
+            A0 += d.amount
+        end
     end
 
     p = (CL=CL, V=V)
@@ -198,14 +193,23 @@ function simulate(spec::ModelSpec{OneCompIVBolus}, grid::SimGrid, solver::Solver
 
     prob = ODEProblem(_ode_onecomp_ivbolus!, u0, tspan, p)
 
-    # Add dose event if dose_time within (t0, t1]
-    cb = nothing
-    if spec.dose_time > grid.t0 && spec.dose_time <= grid.t1
-        condition(u, t, integrator) = t - spec.dose_time
-        function affect!(integrator)
-            integrator.u[1] += spec.dose_amount
+    dose_times = Float64[]
+    dose_amounts = Float64[]
+
+    for d in spec.doses
+        if d.time > grid.t0 && d.time <= grid.t1
+            push!(dose_times, d.time)
+            push!(dose_amounts, d.amount)
         end
-        cb = ContinuousCallback(condition, affect!)
+    end
+
+    cb = nothing
+    if !isempty(dose_times)
+        function affect!(integrator)
+            idx = findfirst(==(integrator.t), dose_times)
+            integrator.u[1] += dose_amounts[idx]
+        end
+        cb = PresetTimeCallback(dose_times, affect!)
     end
 
     sol = solve(
@@ -227,8 +231,7 @@ function simulate(spec::ModelSpec{OneCompIVBolus}, grid::SimGrid, solver::Solver
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
         "abstol" => solver.abstol,
-        "dose_amount" => spec.dose_amount,
-        "dose_time" => spec.dose_time,
+        "dose_schedule" => [(d.time, d.amount) for d in spec.doses],
         "deterministic_output_grid" => true,
     )
 
