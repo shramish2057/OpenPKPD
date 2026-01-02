@@ -452,3 +452,31 @@ end
     @test haskey(res.metadata, "solver_semantics_version")
     @test res.metadata["solver_semantics_version"] == "1.0.0"
 end
+
+@testset "Execution artifact serialization is complete and self-consistent" begin
+    pk = ModelSpec(
+        OneCompIVBolus(),
+        "serialize_test",
+        OneCompIVBolusParams(5.0, 50.0),
+        [DoseEvent(0.0, 100.0)],
+    )
+
+    grid = SimGrid(0.0, 12.0, collect(0.0:1.0:12.0))
+    solver = SolverSpec(:Tsit5, 1e-9, 1e-11, 10^7)
+
+    res = simulate(pk, grid, solver)
+
+    artifact = serialize_execution(model_spec=pk, grid=grid, solver=solver, result=res)
+
+    @test artifact["artifact_schema_version"] == "1.0.0"
+    @test haskey(artifact, "model_spec")
+    @test haskey(artifact, "grid")
+    @test haskey(artifact, "solver")
+    @test haskey(artifact, "result")
+
+    @test artifact["result"]["metadata"]["event_semantics_version"] == "1.0.0"
+    @test artifact["result"]["metadata"]["solver_semantics_version"] == "1.0.0"
+
+    @test artifact["model_spec"]["name"] == "serialize_test"
+    @test artifact["solver"]["alg"] == "Tsit5"
+end

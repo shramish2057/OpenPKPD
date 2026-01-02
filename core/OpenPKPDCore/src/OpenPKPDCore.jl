@@ -11,6 +11,9 @@ include("models/pk_interface.jl")
 include("pd/direct_emax.jl")
 include("pd/indirect_response_turnover.jl")
 
+include("serialization/schema.jl")
+include("serialization/serialize.jl")
+
 include("engine/semantics.jl")
 include("engine/solver_semantics.jl")
 include("engine/events.jl")
