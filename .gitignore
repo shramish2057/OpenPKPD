@@ -1,0 +1,15 @@
+# Julia
+*.jl.cov
+*.jl.mem
+*.jl.*.cov
+Manifest.toml
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Build artifacts
+build/
+dist/

@@ -1,0 +1,7 @@
+name = "OpenPKPDCore"
+uuid = "aa42e64f-7c0c-4f7e-9a43-9f30a48e1a32"
+version = "0.1.0"
+authors = ["shramish2057 <shramish4@gmail.com>"]
+
+[deps]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
