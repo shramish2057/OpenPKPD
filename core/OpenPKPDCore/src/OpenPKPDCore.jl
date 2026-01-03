@@ -6,6 +6,9 @@ module OpenPKPDCore
 using SciMLBase
 using DifferentialEquations
 
+const OPENPKPD_VERSION = "0.1.0"
+export OPENPKPD_VERSION
+
 # ------------------------------------------------------------------
 # Core specs and shared types
 # ------------------------------------------------------------------
@@ -76,5 +79,10 @@ include("serialization/serialize_population.jl")
 include("serialization/deserialize_population.jl")
 include("serialization/serialize_sensitivity.jl")
 include("serialization/deserialize_sensitivity.jl")
+
+include("analysis/exposure.jl")
+include("analysis/response_metrics.jl")
+
+
 
 end

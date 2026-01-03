@@ -1,0 +1,70 @@
+site_name: OpenPKPD
+site_description: Transparent, validated pharmacokinetics and pharmacodynamics modeling infrastructure
+site_author: OpenPKPD contributors
+
+repo_name: openpkpd/openpkpd
+repo_url: https://github.com/openpkpd/openpkpd
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Models: models.md
+    - Population Simulation: population.md
+    - Sensitivity Analysis: sensitivity.md
+  - Reference:
+    - CLI: cli.md
+    - Python Bindings: python.md
+  - Concepts:
+    - Architecture: architecture.md
+    - Semantics: semantics.md
+    - Reproducibility: reproducibility.md
+
+markdown_extensions:
+  - admonition
+  - codehilite:
+      guess_lang: false
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/openpkpd/openpkpd

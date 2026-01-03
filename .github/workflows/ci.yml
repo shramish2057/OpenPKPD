@@ -35,5 +35,29 @@ jobs:
         run: |
           validation/scripts/smoke_cli.sh
 
+      - name: Python bindings smoke test
+        shell: bash
+        run: |
+          python/scripts/smoke_python.sh
+
+      - name: Docs executable contracts
+        shell: bash
+        run: |
+          docs/examples/run_all.sh
+
+      - name: Build documentation site
+        shell: bash
+        run: |
+          docs/build_docs.sh
+
+      - name: Check version consistency
+        shell: bash
+        run: |
+          julia --project=core/OpenPKPDCore scripts/check_version_consistency.jl
+
+
+
+
+
           
 

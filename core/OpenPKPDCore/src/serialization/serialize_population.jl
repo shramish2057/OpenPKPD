@@ -91,7 +91,7 @@ end
 function write_population_json(path::AbstractString; kwargs...)
     artifact = serialize_population_execution(; kwargs...)
     open(path, "w") do io
-        JSON.print(io, artifact; indent=2)
+        JSON.print(io, artifact, 2)
     end
     return path
 end

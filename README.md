@@ -4,6 +4,11 @@
     <strong>Transparent, validated pharmacokinetics and pharmacodynamics modeling infrastructure</strong>
   </p>
   <p align="center">
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+    <a href="https://julialang.org/"><img src="https://img.shields.io/badge/Julia-1.9+-purple.svg" alt="Julia"></a>
+    <a href="https://python.org/"><img src="https://img.shields.io/badge/Python-3.9+-blue.svg" alt="Python"></a>
+  </p>
+  <p align="center">
     <a href="#features">Features</a> •
     <a href="#installation">Installation</a> •
     <a href="#quick-start">Quick Start</a> •
@@ -16,266 +21,174 @@
 
 ## Overview
 
-**OpenPKPD** is a reference-grade PK/PD simulation platform written in Julia, designed for research, method development, and reproducible scientific computation. It emphasizes deterministic execution, transparent numerical semantics, and complete artifact serialization.
-
-> **Note:** This is a scientific computing library, not a GUI product or regulatory submission tool.
+**OpenPKPD** is a reference-grade PK/PD simulation platform designed for research, method development, and reproducible scientific computation. It emphasizes deterministic execution, transparent numerical semantics, and complete artifact serialization.
 
 ## Features
 
-### PK Models
-- **One-Compartment IV Bolus** — Single compartment with intravenous bolus injection
-- **One-Compartment Oral First-Order** — Single compartment with first-order absorption
-
-### PD Models
-- **Direct Emax** — Sigmoidal effect model: `Effect(C) = E0 + (Emax × C) / (EC50 + C)`
-- **Indirect Response Turnover** — Inhibition of Kout with turnover kinetics
-
-### Population Simulation
-- **Inter-Individual Variability (IIV)** — Log-normal distributions with seeded RNG
-- **Inter-Occasion Variability (IOV)** — Occasion-based parameter shifts
-- **Covariate Effects** — Linear, power, and exponential transformation models
-- **Population Summaries** — Mean, median, and quantile statistics
-
-### Sensitivity Analysis
-- Single-run and population-level parameter perturbation
-- Relative perturbation plans with comprehensive metrics
-
-### Deterministic Execution
-- Versioned numerical semantics (event handling, solver behavior)
-- Complete artifact serialization and replay
-- Reproducible results with StableRNG
+| Category | Features |
+|----------|----------|
+| **PK Models** | One-compartment IV bolus, oral first-order absorption |
+| **PD Models** | Direct Emax, indirect response turnover |
+| **Population** | IIV, IOV, static & time-varying covariates |
+| **Sensitivity** | Single-subject and population-level analysis |
+| **Interfaces** | Julia API, Python bindings, CLI |
+| **Reproducibility** | Versioned artifacts with deterministic replay |
 
 ## Installation
 
-### Prerequisites
-
-- [Julia](https://julialang.org/downloads/) 1.9 or later
-
-### Setup
+### Julia (Core)
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/openpkpd.git
+git clone https://github.com/openpkpd/openpkpd.git
 cd openpkpd
 
-# Navigate to the core package
-cd core/OpenPKPDCore
+# Install dependencies
+julia --project=core/OpenPKPDCore -e 'using Pkg; Pkg.instantiate()'
 
-# Activate and instantiate the environment
-julia --project=. -e 'using Pkg; Pkg.instantiate()'
+# Verify installation
+julia --project=core/OpenPKPDCore -e 'using OpenPKPDCore; println("v", OPENPKPD_VERSION)'
 ```
 
-### Verify Installation
+### Python (Optional)
 
 ```bash
-julia --project=. -e 'using OpenPKPDCore; println("OpenPKPD loaded successfully!")'
+cd python
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+### CLI
+
+```bash
+./bin/openpkpd version
 ```
 
 ## Quick Start
 
-### Basic PK Simulation
+### Julia
 
 ```julia
 using OpenPKPDCore
 
-# Define a one-compartment IV bolus model
-pk = ModelSpec(
-    OneCompIVBolus(),
-    "my_pk_model",
-    OneCompIVBolusParams(CL=5.0, V=50.0),  # Clearance, Volume
-    [DoseEvent(0.0, 100.0)]                 # Dose at t=0, amount=100
-)
-
-# Define simulation grid
-grid = SimGrid(0.0, 24.0, collect(0.0:0.5:24.0))
-
-# Configure solver with explicit tolerances
-solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
-
-# Run simulation
-result = simulate(pk, grid, solver)
-
-# Access results
-println("Time points: ", result.t)
-println("Concentrations: ", result.observations[:conc])
-```
-
-### PKPD Simulation
-
-```julia
-using OpenPKPDCore
-
-# PK model
-pk = ModelSpec(
-    OneCompIVBolus(),
-    "pk_iv",
-    OneCompIVBolusParams(5.0, 50.0),
-    [DoseEvent(0.0, 100.0)]
-)
-
-# PD model (Direct Emax)
-pd = PDSpec(
-    DirectEmax(),
-    "pd_emax",
-    DirectEmaxParams(E0=10.0, Emax=40.0, EC50=0.8),
-    :conc,      # Input observation from PK
-    :effect     # Output observation name
-)
-
-grid = SimGrid(0.0, 24.0, collect(0.0:0.5:24.0))
-solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
-
-# Run sequential PKPD
-result = simulate_pkpd(pk, pd, grid, solver)
-
-println("Effect: ", result.observations[:effect])
-```
-
-### Population Simulation with IIV
-
-```julia
-using OpenPKPDCore
-
-# Base model
-base = ModelSpec(
-    OneCompIVBolus(),
-    "pop_pk",
-    OneCompIVBolusParams(5.0, 50.0),
-    [DoseEvent(0.0, 100.0)]
-)
-
-# IIV specification (20 individuals, log-normal variability)
-iiv = IIVSpec(
-    LogNormalIIV(),
-    Dict(:CL => 0.2, :V => 0.1),  # Omega values
-    UInt64(12345),                 # Seed for reproducibility
-    20                             # Number of individuals
-)
-
-pop = PopulationSpec(base, iiv, nothing, nothing, IndividualCovariates[])
-
-grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
-solver = SolverSpec(:Tsit5, 1e-9, 1e-11, 10^7)
-
-# Run population simulation
-result = simulate_population(pop, grid, solver)
-
-# Access summaries
-summary = result.summaries[:conc]
-println("Mean concentration: ", summary.mean)
-println("Median concentration: ", summary.median)
-```
-
-### Sensitivity Analysis
-
-```julia
-using OpenPKPDCore
-
+# Define model
 spec = ModelSpec(
     OneCompIVBolus(),
-    "sens_pk",
-    OneCompIVBolusParams(5.0, 50.0),
-    [DoseEvent(0.0, 100.0)]
+    "example",
+    OneCompIVBolusParams(5.0, 50.0),  # CL=5 L/h, V=50 L
+    [DoseEvent(0.0, 100.0)]            # 100 mg at t=0
 )
 
+# Configure simulation
 grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
-solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
+solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10_000_000)
 
-# Define perturbation plan (10% increase in CL)
-plan = PerturbationPlan(
-    "CL_up_10pct",
-    [Perturbation(RelativePerturbation(), :CL, 0.10)]
-)
-
-# Run sensitivity analysis
-result = run_sensitivity(spec, grid, solver; plan=plan, observation=:conc)
-
-println("Max absolute delta: ", result.metrics.max_abs_delta)
+# Run and access results
+result = simulate(spec, grid, solver)
+println(result.observations[:conc])
 ```
 
-## Project Structure
+### Python
+
+```python
+import openpkpd
+
+openpkpd.init_julia()
+result = openpkpd.simulate_pk_iv_bolus(
+    cl=5.0, v=50.0,
+    doses=[{"time": 0.0, "amount": 100.0}],
+    t0=0.0, t1=24.0,
+    saveat=[float(t) for t in range(25)]
+)
+print(result["observations"]["conc"])
+```
+
+### CLI
+
+```bash
+# Check version
+./bin/openpkpd version
+
+# Replay an artifact
+./bin/openpkpd replay --artifact validation/golden/pk_iv_bolus.json
+
+# Validate all golden artifacts
+./bin/openpkpd validate-golden
+```
+
+## Repository Structure
 
 ```
 openpkpd/
-├── core/                          # Julia core engine
-│   └── OpenPKPDCore/
-│       ├── src/
-│       │   ├── specs/             # Data specifications
-│       │   ├── models/            # PK model definitions
-│       │   ├── pd/                # PD model definitions
-│       │   ├── engine/            # Simulation engine
-│       │   └── serialization/     # Artifact persistence
-│       └── test/                  # Test suite
-├── interfaces/                    # CLI and Python bindings
-│   ├── cli/
-│   └── python/
-├── validation/                    # Reference models & golden artifacts
-│   ├── golden/                    # Validated reference outputs
-│   └── scripts/                   # Validation runners
-├── benchmarks/                    # Performance benchmarks
-├── docs/                          # Technical documentation
-└── examples/                      # Reproducible examples
+├── core/OpenPKPDCore/    # Core Julia package
+│   ├── src/              # Source code
+│   └── test/             # Test suite
+├── cli/OpenPKPDCLI/      # Command-line interface
+├── python/               # Python bindings
+├── docs/                 # Documentation (MkDocs)
+│   └── examples/         # Executable examples
+├── validation/           # Golden artifacts
+│   ├── golden/           # Reference outputs
+│   └── scripts/          # Validation runners
+├── scripts/              # Development tools
+└── bin/                  # CLI entry point
 ```
 
-## Running Tests
+## Testing
 
 ```bash
-cd core/OpenPKPDCore
-julia --project=. -e 'include("test/runtests.jl")'
+# Julia unit tests
+julia --project=core/OpenPKPDCore -e 'using Pkg; Pkg.test()'
+
+# Golden artifact validation
+./bin/openpkpd validate-golden
+
+# Python tests
+cd python && source .venv/bin/activate && pytest tests/
+
+# Documentation build
+mkdocs build --strict
 ```
 
-## Design Principles
+## Semantic Versioning
 
-### Non-Negotiable Invariants
+OpenPKPD uses independent version numbers for numerical behavior:
 
-- **Deterministic Execution** — Same inputs always produce identical outputs
-- **Explicit Configuration** — No hidden defaults; all solver parameters must be specified
-- **Versioned Semantics** — Breaking numerical changes require explicit version bumps
-- **Complete Serialization** — All model specifications and results are persistable
+| Version | Current | Scope |
+|---------|---------|-------|
+| Event Semantics | 1.0.0 | Dose handling |
+| Solver Semantics | 1.0.0 | ODE solver behavior |
+| Artifact Schema | 1.0.0 | JSON format |
 
-### Semantic Versioning
-
-| Version | Description |
-|---------|-------------|
-| `EVENT_SEMANTICS_VERSION` | Dose event handling behavior |
-| `SOLVER_SEMANTICS_VERSION` | ODE solver algorithm mapping |
-| `ARTIFACT_SCHEMA_VERSION` | Serialization data schema |
+Any change to numerical output requires a version bump.
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [DESIGN.md](./DESIGN.md) | Architectural design principles |
-| [EVENT_SEMANTICS.md](./EVENT_SEMANTICS.md) | Dose event semantics v1.0.0 |
-| [SOLVER_SEMANTICS.md](./SOLVER_SEMANTICS.md) | Solver semantics v1.0.0 |
-| [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution guidelines |
-| [validation/CHANGE_POLICY.md](./validation/CHANGE_POLICY.md) | Change policy and versioning |
+Full documentation: [openpkpd.github.io/openpkpd](https://openpkpd.github.io/openpkpd/)
 
-## Supported Solvers
-
-| Solver | Description |
-|--------|-------------|
-| `:Tsit5` | 5th order Runge-Kutta (Tsitouras) |
-| `:Rosenbrock23` | Linearly implicit Rosenbrock method |
+Build locally:
+```bash
+pip install -r docs/requirements.txt
+mkdocs serve
+```
 
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
-## Acknowledgments
+## Citation
 
-- Built with [DifferentialEquations.jl](https://diffeq.sciml.ai/) for ODE solving
-- Uses [StableRNGs.jl](https://github.com/JuliaRandom/StableRNGs.jl) for reproducible random number generation
+```bibtex
+@software{openpkpd,
+  title = {OpenPKPD: Transparent PK/PD Modeling Infrastructure},
+  url = {https://github.com/openpkpd/openpkpd},
+  version = {0.1.0}
+}
+```
 
 ---
 

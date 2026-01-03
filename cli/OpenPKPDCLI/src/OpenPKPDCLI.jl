@@ -10,7 +10,7 @@ function _die(msg::String)
 end
 
 function cmd_version()
-    println("OpenPKPDCLI 0.1.0")
+    println("OpenPKPD " * OpenPKPDCore.OPENPKPD_VERSION)
     println("Event semantics: " * OpenPKPDCore.EVENT_SEMANTICS_VERSION)
     println("Solver semantics: " * OpenPKPDCore.SOLVER_SEMANTICS_VERSION)
     println("Artifact schema: " * OpenPKPDCore.ARTIFACT_SCHEMA_VERSION)
@@ -94,7 +94,9 @@ function cmd_validate_golden()
         _die("Golden validation runner not found: " * runner)
     end
 
-    include(runner)
+    # Run validation script in a subprocess to avoid Pkg dependency issues
+    cmd = `julia $runner`
+    run(Cmd(cmd; dir=repo_root))
 end
 
 function main()

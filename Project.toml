@@ -1,15 +1,8 @@
-name = "OpenPKPD"
-uuid = "00000000-0000-0000-0000-000000000001"
-version = "0.1.0"
-authors = ["OpenPKPD Contributors"]
+# Development tools for OpenPKPD repository
+# Core package is in core/OpenPKPDCore/
 
 [deps]
-DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
-SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
-JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 
 [compat]
-JuliaFormatter = "2.2.0"
-julia = "1.10"
+JuliaFormatter = "2"

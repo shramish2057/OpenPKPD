@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openpkpd"
+version = "0.1.0"
+description = "Python interface for OpenPKPDCore (Julia) with deterministic artifact replay"
+requires-python = ">=3.10"
+dependencies = [
+  "juliacall>=0.9.20",
+]
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
