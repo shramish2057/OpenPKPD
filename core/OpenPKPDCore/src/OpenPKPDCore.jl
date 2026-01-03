@@ -7,8 +7,9 @@ using SciMLBase
 using DifferentialEquations
 
 # ------------------------------------------------------------------
-# Core specs and shared types 
+# Core specs and shared types
 # ------------------------------------------------------------------
+include("specs/time_covariates.jl")
 include("specs/specs.jl")
 include("specs/sensitivity.jl")
 
@@ -61,6 +62,7 @@ include("engine/pkpd_coupled.jl")
 include("engine/iov.jl")
 include("engine/segment_sim.jl")
 include("engine/segment_sim_pkpd.jl")
+include("engine/time_covariates.jl")
 include("engine/covariates.jl")
 include("engine/population.jl")
 

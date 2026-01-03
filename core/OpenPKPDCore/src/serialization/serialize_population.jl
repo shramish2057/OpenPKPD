@@ -12,12 +12,31 @@ function _serialize_iiv(iiv::Union{Nothing,IIVSpec})
     )
 end
 
+function _serialize_time_varying(tvc::Union{Nothing,TimeVaryingCovariates})
+    if tvc === nothing
+        return nothing
+    end
+    out = Dict{String,Any}()
+    for (name, s_any) in tvc.series
+        s = s_any
+        kind = s.kind isa StepTimeCovariate ? "StepTimeCovariate" : "LinearTimeCovariate"
+        out[String(name)] = Dict("kind" => kind, "times" => s.times, "values" => s.values)
+    end
+    return out
+end
+
+function _serialize_individual_covariates(c::IndividualCovariates)
+    return Dict(
+        "values" => Dict(String(k) => v for (k, v) in c.values),
+        "time_varying" => _serialize_time_varying(c.time_varying),
+    )
+end
+
 function _serialize_population_spec(pop::PopulationSpec)
     return Dict(
         "base_model_spec" => _serialize_model_spec(pop.base_model_spec),
         "iiv" => _serialize_iiv(pop.iiv),
-        "covariates" =>
-            [Dict(String(k) => v for (k, v) in c.values) for c in pop.covariates],
+        "covariates" => [_serialize_individual_covariates(c) for c in pop.covariates],
         "covariate_model" => _serialize_covariate_model(pop.covariate_model),
         "iov" => _serialize_iov(pop.iov),
     )

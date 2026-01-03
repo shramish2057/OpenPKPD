@@ -45,25 +45,48 @@ function validate(iiv::IIVSpec{LogNormalIIV})
     return nothing
 end
 
-function _realize_params_log_normal(base_params, omegas::Dict{Symbol,Float64}, rng)
+"""
+Sample eta values for IIV. These are sampled once per individual and applied
+to all segments.
+"""
+function _sample_etas_log_normal(base_params, omegas::Dict{Symbol,Float64}, rng)
     T = typeof(base_params)
     fn = fieldnames(T)
 
-    vals = Dict{Symbol,Float64}()
-
+    etas = Dict{Symbol,Float64}()
     for f in fn
-        θ = Float64(getfield(base_params, f))
         if haskey(omegas, f)
             ω = omegas[f]
-            η = rand(rng, Normal(0.0, ω))
-            vals[f] = θ * exp(η)
-        else
-            vals[f] = θ
+            etas[f] = rand(rng, Normal(0.0, ω))
         end
     end
+    return etas
+end
 
-    new_params = T((vals[f] for f in fn)...)
-    return new_params, vals
+"""
+Apply pre-sampled etas to parameters.
+theta_i = theta * exp(eta)
+"""
+function _apply_etas_log_normal(params, etas::Dict{Symbol,Float64})
+    T = typeof(params)
+    fn = fieldnames(T)
+
+    vals = Dict{Symbol,Float64}()
+    for f in fn
+        θ = Float64(getfield(params, f))
+        if haskey(etas, f)
+            θ = θ * exp(etas[f])
+        end
+        vals[f] = θ
+    end
+
+    return T((vals[f] for f in fn)...), vals
+end
+
+# Keep the old function for backward compatibility with existing code paths
+function _realize_params_log_normal(base_params, omegas::Dict{Symbol,Float64}, rng)
+    etas = _sample_etas_log_normal(base_params, omegas, rng)
+    return _apply_etas_log_normal(base_params, etas)
 end
 
 function _mean(xs::Vector{Float64})
@@ -151,6 +174,63 @@ function compute_population_summary(
     return PopulationSummary(observation, probs, mean_v, median_v, qmap)
 end
 
+"""
+Build unified segment boundaries from IOV and time-varying covariates.
+Returns sorted unique times within [t0, t1].
+"""
+function _build_segment_starts(
+    grid::SimGrid,
+    doses::Vector{DoseEvent},
+    iov::Union{Nothing,IOVSpec},
+    covs_i::Union{Nothing,IndividualCovariates},
+    has_covariate_model::Bool,
+)
+    segment_starts = Float64[grid.t0]
+
+    # Add IOV occasion boundaries
+    if iov !== nothing
+        occ = derive_occasions(doses, grid, iov.occasion_def)
+        append!(segment_starts, occ)
+    end
+
+    # Add time-varying covariate boundaries
+    if has_covariate_model && covs_i !== nothing && covs_i.time_varying !== nothing
+        tv_times = covariate_boundary_times(covs_i.time_varying)
+        append!(segment_starts, tv_times)
+    end
+
+    sort!(segment_starts)
+
+    # unique and within bounds
+    uniq = Float64[]
+    for t in segment_starts
+        if t >= grid.t0 && t <= grid.t1
+            if isempty(uniq) || t != uniq[end]
+                push!(uniq, t)
+            end
+        end
+    end
+
+    return uniq
+end
+
+"""
+Check if segmentation is needed for an individual.
+"""
+function _needs_segmentation(
+    iov::Union{Nothing,IOVSpec},
+    covs_i::Union{Nothing,IndividualCovariates},
+    has_covariate_model::Bool,
+)
+    if iov !== nothing
+        return true
+    end
+    if has_covariate_model && covs_i !== nothing && covs_i.time_varying !== nothing
+        return true
+    end
+    return false
+end
+
 function simulate_population(
     pop::PopulationSpec,
     grid::SimGrid,
@@ -201,84 +281,128 @@ function simulate_population(
     individuals = Vector{SimResult}(undef, n)
     realized_params = Vector{Dict{Symbol,Float64}}(undef, n)
 
-    # Precompute occasions once (same for all individuals) if IOV is enabled
-    occ_starts = nothing
-    if pop.iov !== nothing
-        occ_starts = derive_occasions(base.doses, grid, pop.iov.occasion_def)
-    end
+    has_covariate_model = pop.covariate_model !== nothing
 
     for i in 1:n
-        # 1) Start from base params
-        params_i = base.params
-
-        # 2) Apply covariates (optional) and create a snapshot dict
-        snap = Dict{Symbol,Float64}()
-
-        if pop.covariate_model !== nothing
-            covs = pop.covariates[i]
-            params_i, snap = apply_covariates(base.params, pop.covariate_model, covs)
+        # Get individual covariates if available
+        covs_i = if !isempty(pop.covariates)
+            pop.covariates[i]
         else
-            T = typeof(base.params)
-            for f in fieldnames(T)
-                snap[f] = Float64(getfield(base.params, f))
-            end
+            nothing
         end
 
-        # 3) Apply IIV (optional)
-        if pop.iiv !== nothing
-            params_i, d_iiv = _realize_params_log_normal(params_i, omegas, rng)
-            realized = copy(snap)
-            for (k, v) in d_iiv
-                realized[k] = v
-            end
-            realized_params[i] = realized
+        # Sample etas once per individual (constant across segments)
+        etas = if pop.iiv === nothing
+            Dict{Symbol,Float64}()
         else
-            realized_params[i] = snap
+            _sample_etas_log_normal(base.params, omegas, rng)
         end
 
-        # 4) Simulate with or without IOV, with or without PKPD
-        spec_i = ModelSpec(base.kind, base.name * "_i$(i)", params_i, base.doses)
+        # Precompute IOV occasions and kappas for this individual
+        occ_starts = if pop.iov === nothing
+            Float64[]
+        else
+            derive_occasions(base.doses, grid, pop.iov.occasion_def)
+        end
+        kappas = if pop.iov === nothing
+            Vector{Dict{Symbol,Float64}}()
+        else
+            sample_iov_kappas(pop.iov.pis, length(occ_starts), pop.iov.seed + UInt64(i))
+        end
 
-        if pd_spec === nothing
-            # PK-only simulation
-            if pop.iov === nothing
+        # Check if we need segmentation
+        needs_seg = _needs_segmentation(pop.iov, covs_i, has_covariate_model)
+
+        if !needs_seg
+            # Simple path: no segmentation needed
+            # Apply static covariates if any
+            params_i = base.params
+            snap = Dict{Symbol,Float64}()
+
+            if has_covariate_model && covs_i !== nothing
+                params_i, snap = apply_covariates(base.params, pop.covariate_model, covs_i)
+            else
+                T = typeof(base.params)
+                for f in fieldnames(T)
+                    snap[f] = Float64(getfield(base.params, f))
+                end
+            end
+
+            # Apply IIV
+            if pop.iiv !== nothing
+                params_i, vals_iiv = _apply_etas_log_normal(params_i, etas)
+                realized = copy(snap)
+                for (k, v) in vals_iiv
+                    realized[k] = v
+                end
+                realized_params[i] = realized
+            else
+                realized_params[i] = snap
+            end
+
+            spec_i = ModelSpec(base.kind, base.name * "_i$(i)", params_i, base.doses)
+
+            if pd_spec === nothing
                 individuals[i] = simulate(spec_i, grid, solver)
             else
-                # Individual-specific kappas stream, deterministic
-                starts = occ_starts::Vector{Float64}
-                kappas = sample_iov_kappas(
-                    pop.iov.pis, length(starts), pop.iov.seed + UInt64(i)
-                )
-
-                pk_params_segments = Vector{typeof(params_i)}(undef, length(starts))
-                for occ in 1:length(starts)
-                    p_occ, _ = apply_iov(params_i, kappas[occ])
-                    pk_params_segments[occ] = p_occ
-                end
-
-                individuals[i] = simulate_segmented_pk(
-                    spec_i, grid, solver, starts, pk_params_segments
-                )
+                individuals[i] = simulate_pkpd_coupled(spec_i, pd_spec, grid, solver)
             end
         else
-            # Coupled PKPD simulation
-            if pop.iov === nothing
-                individuals[i] = simulate_pkpd_coupled(spec_i, pd_spec, grid, solver)
-            else
-                # Individual-specific kappas stream, deterministic
-                starts = occ_starts::Vector{Float64}
-                kappas = sample_iov_kappas(
-                    pop.iov.pis, length(starts), pop.iov.seed + UInt64(i)
-                )
+            # Segmentation path: IOV and/or time-varying covariates
+            segment_starts = _build_segment_starts(
+                grid, base.doses, pop.iov, covs_i, has_covariate_model
+            )
 
-                pk_params_segments = Vector{typeof(params_i)}(undef, length(starts))
-                for occ in 1:length(starts)
-                    p_occ, _ = apply_iov(params_i, kappas[occ])
-                    pk_params_segments[occ] = p_occ
+            params_per_segment = Vector{typeof(base.params)}(undef, length(segment_starts))
+            final_realized = Dict{Symbol,Float64}()
+
+            for (si, tseg) in enumerate(segment_starts)
+                # 1) Apply covariates at this time point
+                params_cov = base.params
+                snap = Dict{Symbol,Float64}()
+
+                if has_covariate_model && covs_i !== nothing
+                    params_cov, snap = apply_covariates_at_time(
+                        base.params, pop.covariate_model, covs_i, tseg
+                    )
+                else
+                    T = typeof(base.params)
+                    for f in fieldnames(T)
+                        snap[f] = Float64(getfield(base.params, f))
+                    end
                 end
 
+                # 2) Apply IIV (etas are constant across segments)
+                params_iiv, vals_iiv = _apply_etas_log_normal(params_cov, etas)
+
+                # 3) Apply IOV if applicable
+                params_final = params_iiv
+                if pop.iov !== nothing && !isempty(occ_starts)
+                    oi = occasion_index_at_time(occ_starts, tseg)
+                    if oi >= 1 && oi <= length(kappas)
+                        params_final, _ = apply_iov(params_iiv, kappas[oi])
+                    end
+                end
+
+                params_per_segment[si] = params_final
+
+                # Store final realized params from first segment for metadata
+                if si == 1
+                    final_realized = vals_iiv
+                end
+            end
+
+            realized_params[i] = final_realized
+
+            spec_i = ModelSpec(base.kind, base.name * "_i$(i)", base.params, base.doses)
+
+            if pd_spec === nothing
+                individuals[i] = simulate_segmented_pk(
+                    spec_i, grid, solver, segment_starts, params_per_segment
+                )
+            else
                 individuals[i] = simulate_segmented_pkpd_coupled(
-                    spec_i, pd_spec, grid, solver, starts, pk_params_segments
+                    spec_i, pd_spec, grid, solver, segment_starts, params_per_segment
                 )
             end
         end

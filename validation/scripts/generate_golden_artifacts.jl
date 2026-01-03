@@ -214,6 +214,34 @@ function gen_population_iov_pkpd()
 end
 
 
+function gen_population_time_varying_covariate_iv()
+    base = ModelSpec(
+        OneCompIVBolus(),
+        "golden_tv_cov_iv",
+        OneCompIVBolusParams(5.0, 50.0),
+        [DoseEvent(0.0, 100.0)],
+    )
+
+    cm = CovariateModel(
+        "cl_tv",
+        [CovariateEffect(LinearCovariate(), :CL, :CLMULT, 1.0, 1.0)],
+    )
+
+    tv = TimeVaryingCovariates(Dict(
+        :CLMULT => TimeCovariateSeries(StepTimeCovariate(), [0.0, 10.0], [1.0, 2.0]),
+    ))
+
+    covs = [IndividualCovariates(Dict{Symbol,Float64}(), tv)]
+    pop = PopulationSpec(base, nothing, nothing, cm, covs)
+
+    grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
+    solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
+
+    res = simulate_population(pop, grid, solver)
+
+    return serialize_population_execution(population_spec=pop, grid=grid, solver=solver, result=res)
+end
+
 function main()
     mkpath("validation/golden")
 
@@ -227,6 +255,7 @@ function main()
         "sensitivity_population_iv.json" => gen_sensitivity_population_iv(),
         "population_iov_iv.json" => gen_population_iov_iv(),
         "population_iov_pkpd.json" => gen_population_iov_pkpd(),
+        "population_time_varying_cov_iv.json" => gen_population_time_varying_covariate_iv(),
     )
 
     for (fname, art) in artifacts

@@ -238,10 +238,16 @@ end
 
 """
 Optional covariates per individual.
-For v1 we keep covariates as a Dict.
+
+values:
+- static covariates as Dict{Symbol, Float64}
+
+time_varying:
+- optional TimeVaryingCovariates for time-dependent covariates
 """
 struct IndividualCovariates
     values::Dict{Symbol,Float64}
+    time_varying::Union{Nothing,TimeVaryingCovariates}
 end
 
 """

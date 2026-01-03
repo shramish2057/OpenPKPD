@@ -917,3 +917,43 @@ end
     @test idx13 !== nothing
     @test abs(y1[idx13] - base.individuals[1].observations[:response][idx13]) > 0.0
 end
+
+@testset "Time-varying covariate changes concentration deterministically via segmentation" begin
+    base = ModelSpec(
+        OneCompIVBolus(),
+        "tv_cov_iv",
+        OneCompIVBolusParams(5.0, 50.0),
+        [DoseEvent(0.0, 100.0)],
+    )
+
+    # CL increases at t=10, so concentrations after 10 should drop faster
+    cm = CovariateModel(
+        "cl_tv", [CovariateEffect(LinearCovariate(), :CL, :CLMULT, 1.0, 1.0)]
+    )
+
+    tv = TimeVaryingCovariates(
+        Dict(:CLMULT => TimeCovariateSeries(StepTimeCovariate(), [0.0, 10.0], [1.0, 2.0]))
+    )
+
+    covs = [IndividualCovariates(Dict{Symbol,Float64}(), tv)]
+    pop = PopulationSpec(base, nothing, nothing, cm, covs)
+
+    grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
+    solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
+
+    res = simulate_population(pop, grid, solver)
+
+    c = res.individuals[1].observations[:conc]
+    idx9 = findfirst(==(9.0), grid.saveat)
+    idx11 = findfirst(==(11.0), grid.saveat)
+
+    @test idx9 !== nothing
+    @test idx11 !== nothing
+
+    # sanity: conc at 11 should be lower than it would be with constant CL
+    pop_const = PopulationSpec(base, nothing, nothing, nothing, IndividualCovariates[])
+    base_res = simulate_population(pop_const, grid, solver)
+    c_base = base_res.individuals[1].observations[:conc]
+
+    @test abs(c[idx11] - c_base[idx11]) > 0.0
+end

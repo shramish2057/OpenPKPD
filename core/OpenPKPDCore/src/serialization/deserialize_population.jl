@@ -25,14 +25,56 @@ function _parse_iiv(d)::Union{Nothing,IIVSpec}
     return IIVSpec(kind, omegas, seed, n)
 end
 
+function _parse_time_varying(d)::Union{Nothing,TimeVaryingCovariates}
+    if d === nothing
+        return nothing
+    end
+    series = Dict{Symbol,Any}()
+    for (k, v) in d
+        kind_s = String(v["kind"])
+        times = [Float64(x) for x in v["times"]]
+        values = [Float64(x) for x in v["values"]]
+
+        if kind_s == "StepTimeCovariate"
+            series[Symbol(String(k))] = TimeCovariateSeries(
+                StepTimeCovariate(), times, values
+            )
+        elseif kind_s == "LinearTimeCovariate"
+            series[Symbol(String(k))] = TimeCovariateSeries(
+                LinearTimeCovariate(), times, values
+            )
+        else
+            error("Unsupported time covariate kind: $(kind_s)")
+        end
+    end
+    return TimeVaryingCovariates(series)
+end
+
 function _parse_covariates(arr)::Vector{IndividualCovariates}
     covs = IndividualCovariates[]
     for item in arr
-        d = Dict{Symbol,Float64}()
-        for (k, v) in item
-            d[Symbol(String(k))] = Float64(v)
+        # Handle both old format (flat dict) and new format (with values/time_varying)
+        if haskey(item, "values")
+            # New format
+            values_in = item["values"]
+            d = Dict{Symbol,Float64}()
+            for (k, v) in values_in
+                d[Symbol(String(k))] = Float64(v)
+            end
+            tv = if haskey(item, "time_varying")
+                _parse_time_varying(item["time_varying"])
+            else
+                nothing
+            end
+            push!(covs, IndividualCovariates(d, tv))
+        else
+            # Old format (flat dict, no time_varying)
+            d = Dict{Symbol,Float64}()
+            for (k, v) in item
+                d[Symbol(String(k))] = Float64(v)
+            end
+            push!(covs, IndividualCovariates(d, nothing))
         end
-        push!(covs, IndividualCovariates(d))
     end
     return covs
 end

@@ -1,7 +1,7 @@
 using StableRNGs
 using Distributions
 
-export derive_occasions, sample_iov_kappas, apply_iov
+export derive_occasions, sample_iov_kappas, apply_iov, occasion_index_at_time
 
 function validate(iov::IOVSpec{LogNormalIIV})
     for (k, π) in iov.pis
@@ -88,4 +88,13 @@ function apply_iov(params, kappa::Dict{Symbol,Float64})
     end
 
     return T((vals[f] for f in fn)...), vals
+end
+
+"""
+Return the occasion index (1-based) for a given time t.
+Returns the index of the rightmost occasion start <= t.
+"""
+function occasion_index_at_time(occ_starts::Vector{Float64}, t::Float64)
+    # rightmost occ_start <= t
+    return searchsortedlast(occ_starts, t)
 end
