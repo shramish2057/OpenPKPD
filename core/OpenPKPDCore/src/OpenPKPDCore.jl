@@ -67,5 +67,7 @@ include("serialization/serialize.jl")
 include("serialization/deserialize.jl")
 include("serialization/serialize_population.jl")
 include("serialization/deserialize_population.jl")
+include("serialization/serialize_sensitivity.jl")
+include("serialization/deserialize_sensitivity.jl")
 
 end

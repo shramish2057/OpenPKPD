@@ -41,7 +41,7 @@ end
 function validate_one(path::String)
     artifact = _load_json(path)
 
-        atype = "single"
+    atype = "single"
     if haskey(artifact, "artifact_type")
         atype = String(artifact["artifact_type"])
     end
@@ -143,6 +143,57 @@ function validate_one(path::String)
 
         return true
     end
+
+        if atype == "sensitivity_single"
+        if haskey(artifact, "semantics_fingerprint")
+            current = semantics_fingerprint()
+            storedfp = Dict{String, Any}(artifact["semantics_fingerprint"])
+            for (k, v) in current
+                if !haskey(storedfp, k)
+                    error("Stored semantics fingerprint missing key $(k) in $(path)")
+                end
+                if String(storedfp[k]) != String(v)
+                    error("Semantics version mismatch for $(k) in $(path). Stored=$(storedfp[k]), Current=$(v)")
+                end
+            end
+        end
+
+        replay = replay_sensitivity_execution(artifact)
+
+        base_series = [Float64(x) for x in artifact["base_series"]]
+        pert_series = [Float64(x) for x in artifact["pert_series"]]
+
+        _compare_vectors(base_series, replay.base_metric_series, "sensitivity.base_series")
+        _compare_vectors(pert_series, replay.pert_metric_series, "sensitivity.pert_series")
+
+        return true
+    end
+
+    if atype == "sensitivity_population"
+        if haskey(artifact, "semantics_fingerprint")
+            current = semantics_fingerprint()
+            storedfp = Dict{String, Any}(artifact["semantics_fingerprint"])
+            for (k, v) in current
+                if !haskey(storedfp, k)
+                    error("Stored semantics fingerprint missing key $(k) in $(path)")
+                end
+                if String(storedfp[k]) != String(v)
+                    error("Semantics version mismatch for $(k) in $(path). Stored=$(storedfp[k]), Current=$(v)")
+                end
+            end
+        end
+
+        replay = replay_population_sensitivity_execution(artifact)
+
+        base_mean = [Float64(x) for x in artifact["base_mean"]]
+        pert_mean = [Float64(x) for x in artifact["pert_mean"]]
+
+        _compare_vectors(base_mean, replay.base_summary_mean, "pop_sens.base_mean")
+        _compare_vectors(pert_mean, replay.pert_summary_mean, "pop_sens.pert_mean")
+
+        return true
+    end
+
 
     if haskey(artifact, "semantics_fingerprint")
         current = semantics_fingerprint()

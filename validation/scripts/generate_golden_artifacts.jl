@@ -118,6 +118,46 @@ function gen_population_pk_iv()
     return serialize_population_execution(population_spec=pop, grid=grid, solver=solver, result=res)
 end
 
+function gen_sensitivity_single_iv()
+    spec = ModelSpec(
+        OneCompIVBolus(),
+        "golden_sens_single",
+        OneCompIVBolusParams(5.0, 50.0),
+        [DoseEvent(0.0, 100.0)],
+    )
+
+    grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
+    solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
+
+    plan = PerturbationPlan("CL_up_10pct", [Perturbation(RelativePerturbation(), :CL, 0.10)])
+
+    res = run_sensitivity(spec, grid, solver; plan = plan, observation = :conc)
+
+    return serialize_sensitivity_execution(model_spec = spec, grid = grid, solver = solver, result = res)
+end
+
+function gen_sensitivity_population_iv()
+    base = ModelSpec(
+        OneCompIVBolus(),
+        "golden_sens_pop_base",
+        OneCompIVBolusParams(5.0, 50.0),
+        [DoseEvent(0.0, 100.0)],
+    )
+
+    iiv = IIVSpec(LogNormalIIV(), Dict(:CL => 0.2, :V => 0.1), UInt64(7777), 5)
+    pop = PopulationSpec(base, iiv, IndividualCovariates[])
+
+    grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
+    solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
+
+    plan = PerturbationPlan("CL_up_10pct", [Perturbation(RelativePerturbation(), :CL, 0.10)])
+
+    res = run_population_sensitivity(pop, grid, solver; plan = plan, observation = :conc, probs = [0.05, 0.95])
+
+    return serialize_population_sensitivity_execution(population_spec = pop, grid = grid, solver = solver, result = res)
+end
+
+
 function main()
     mkpath("validation/golden")
 
@@ -127,7 +167,8 @@ function main()
         "pk_then_pd_direct_emax.json" => gen_pk_then_pd_direct_emax(),
         "pkpd_coupled_turnover_oral.json" => gen_coupled_pkpd_turnover_oral(),
         "population_pk_iv.json" => gen_population_pk_iv(),
-
+        "sensitivity_single_iv.json" => gen_sensitivity_single_iv(),
+        "sensitivity_population_iv.json" => gen_sensitivity_population_iv()
     )
 
     for (fname, art) in artifacts
