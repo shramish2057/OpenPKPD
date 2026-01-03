@@ -3,6 +3,14 @@ using JSON
 export read_execution_json, deserialize_execution, replay_execution
 
 # -------------------------
+# JSON normalization
+# -------------------------
+
+_to_dict(x::Dict) = x
+_to_dict(x::JSON.Object) = Dict{String, Any}(x)
+
+
+# -------------------------
 # Kind resolution
 # -------------------------
 
@@ -122,9 +130,11 @@ end
 """
 Read an execution artifact JSON file into a Dict.
 """
-function read_execution_json(path::AbstractString)::Dict
-    return JSON.parsefile(path)
+function read_execution_json(path::AbstractString)::Dict{String, Any}
+    obj = JSON.parsefile(path)
+    return Dict{String, Any}(obj)
 end
+
 
 """
 Deserialize an execution artifact into core objects.
@@ -143,13 +153,14 @@ function deserialize_execution(artifact::Dict)
         )
     end
 
-    model_spec = _parse_model_spec(_require_key(artifact, "model_spec"))
-    grid = _parse_grid(_require_key(artifact, "grid"))
-    solver = _parse_solver(_require_key(artifact, "solver"))
+    model_spec = _parse_model_spec(_to_dict(_require_key(artifact, "model_spec")))
+    grid = _parse_grid(_to_dict(_require_key(artifact, "grid")))
+    solver = _parse_solver(_to_dict(_require_key(artifact, "solver")))
+
 
     pd_spec = nothing
     if haskey(artifact, "pd_spec")
-        pd_spec = _parse_pd_spec(artifact["pd_spec"])
+        pd_spec = _parse_pd_spec(_to_dict(artifact["pd_spec"]))
     end
 
     # Optional field, inferred if absent
