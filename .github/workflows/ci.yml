@@ -70,6 +70,11 @@ jobs:
         run: |
           docs/examples/real_world_validation/datasets/theophylline_theo_md/run_and_validate.sh
 
+      - name: Real-world study (warfarin PKPD)
+        shell: bash
+        run: |
+          docs/examples/real_world_validation/datasets/warfarin_nlmixr2data/run_and_validate.sh
+
       - name: Check version consistency
         shell: bash
         run: |
