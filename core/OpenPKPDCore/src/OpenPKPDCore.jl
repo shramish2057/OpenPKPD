@@ -10,6 +10,7 @@ using DifferentialEquations
 # Core specs and shared types 
 # ------------------------------------------------------------------
 include("specs/specs.jl")
+include("specs/sensitivity.jl")
 
 # ------------------------------------------------------------------
 # PK model definitions
@@ -31,6 +32,14 @@ include("pd/indirect_response_turnover.jl")
 include("engine/semantics.jl")
 include("engine/solver_semantics.jl")
 include("engine/semantics_fingerprint.jl")
+
+# ------------------------------------------------------------------
+# Perturbation + sensitivity core
+# ------------------------------------------------------------------
+include("engine/perturb.jl")
+include("engine/sensitivity_metrics.jl")
+include("engine/sensitivity.jl")
+include("engine/sensitivity_population.jl")
 
 # ------------------------------------------------------------------
 # Core simulation engine
