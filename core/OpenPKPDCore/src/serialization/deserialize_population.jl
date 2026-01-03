@@ -1,6 +1,6 @@
 export deserialize_population_execution, replay_population_execution
 
-function _parse_iiv(d)::Union{Nothing, IIVSpec}
+function _parse_iiv(d)::Union{Nothing,IIVSpec}
     if d === nothing
         return nothing
     end
@@ -14,8 +14,7 @@ function _parse_iiv(d)::Union{Nothing, IIVSpec}
         error("Unsupported IIV kind in artifact: $(kind_str)")
     end
 
-
-    omegas = Dict{Symbol, Float64}()
+    omegas = Dict{Symbol,Float64}()
     for (k, v) in d["omegas"]
         omegas[Symbol(String(k))] = Float64(v)
     end
@@ -29,7 +28,7 @@ end
 function _parse_covariates(arr)::Vector{IndividualCovariates}
     covs = IndividualCovariates[]
     for item in arr
-        d = Dict{Symbol, Float64}()
+        d = Dict{Symbol,Float64}()
         for (k, v) in item
             d[Symbol(String(k))] = Float64(v)
         end
@@ -55,7 +54,9 @@ Returns a NamedTuple:
 function deserialize_population_execution(artifact::Dict)
     schema = String(artifact["artifact_schema_version"])
     if schema != ARTIFACT_SCHEMA_VERSION
-        error("Unsupported artifact schema version: $(schema). Expected: $(ARTIFACT_SCHEMA_VERSION)")
+        error(
+            "Unsupported artifact schema version: $(schema). Expected: $(ARTIFACT_SCHEMA_VERSION)",
+        )
     end
 
     if haskey(artifact, "artifact_type")
@@ -68,8 +69,7 @@ function deserialize_population_execution(artifact::Dict)
     grid = _parse_grid(_to_dict(artifact["grid"]))
     solver = _parse_solver(_to_dict(artifact["solver"]))
 
-
-    return (population_spec = pop_spec, grid = grid, solver = solver)
+    return (population_spec=pop_spec, grid=grid, solver=solver)
 end
 
 """

@@ -90,6 +90,46 @@ function validate_one(path::String)
             _compare_dict_of_series(stored_obs, replay.individuals[i].observations, "pop.observations[$i]")
         end
 
+        if !haskey(stored, "summaries")
+            error("Stored population artifact missing summaries in $(path)")
+        end
+
+        stored_summaries = Dict{String, Any}(stored["summaries"])
+
+        # Replay summaries exist on PopulationResult
+        replay_summaries = replay.summaries
+
+        exp_keys = sort(collect(keys(stored_summaries)))
+        act_keys = sort([String(k) for k in keys(replay_summaries)])
+        _require_equal(exp_keys, act_keys, "population summaries keys")
+
+        for k in exp_keys
+            s_exp = stored_summaries[k]
+            s_act = replay_summaries[Symbol(k)]
+
+            # Compare mean and median series
+            exp_mean = [Float64(x) for x in s_exp["mean"]]
+            exp_median = [Float64(x) for x in s_exp["median"]]
+
+            _compare_vectors(exp_mean, s_act.mean, "summary.$(k).mean")
+            _compare_vectors(exp_median, s_act.median, "summary.$(k).median")
+
+            # Compare quantiles
+            exp_q = Dict{String, Any}(s_exp["quantiles"])
+            act_q = s_act.quantiles
+
+            exp_q_keys = sort(collect(keys(exp_q)))
+            act_q_keys = sort([string(p) for p in keys(act_q)])
+            _require_equal(exp_q_keys, act_q_keys, "summary.$(k).quantile keys")
+
+            for pk in exp_q_keys
+                p = parse(Float64, pk)
+                exp_v = [Float64(x) for x in exp_q[pk]]
+                act_v = act_q[p]
+                _compare_vectors(exp_v, act_v, "summary.$(k).q$(pk)")
+            end
+        end
+
         # Enforce semantics version keys in metadata
         if !haskey(stored_meta, "event_semantics_version")
             error("Stored population artifact missing event_semantics_version in $(path)")

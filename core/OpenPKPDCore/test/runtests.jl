@@ -626,7 +626,7 @@ end
         c2 = r2.individuals[i].observations[:conc]
         @test length(c1) == length(c2)
         for j in eachindex(c1)
-            @test isapprox(c1[j], c2[j]; rtol = 1e-12, atol = 1e-12)
+            @test isapprox(c1[j], c2[j]; rtol=1e-12, atol=1e-12)
         end
     end
 end
@@ -653,7 +653,7 @@ end
     c_pop = pop_res.individuals[1].observations[:conc]
 
     for j in eachindex(c_base)
-        @test isapprox(c_pop[j], c_base[j]; rtol = 1e-12, atol = 1e-12)
+        @test isapprox(c_pop[j], c_base[j]; rtol=1e-12, atol=1e-12)
     end
 end
 
@@ -673,7 +673,9 @@ end
 
     r1 = simulate_population(pop, grid, solver)
 
-    artifact = serialize_population_execution(population_spec = pop, grid = grid, solver = solver, result = r1)
+    artifact = serialize_population_execution(
+        population_spec=pop, grid=grid, solver=solver, result=r1
+    )
 
     r2 = replay_population_execution(artifact)
 
@@ -685,7 +687,28 @@ end
         c2 = r2.individuals[i].observations[:conc]
         @test length(c1) == length(c2)
         for j in eachindex(c1)
-            @test isapprox(c2[j], c1[j]; rtol = 1e-12, atol = 1e-12)
+            @test isapprox(c2[j], c1[j]; rtol=1e-12, atol=1e-12)
+        end
+    end
+
+    @test haskey(r1.summaries, :conc)
+    @test haskey(r2.summaries, :conc)
+
+    s1 = r1.summaries[:conc]
+    s2 = r2.summaries[:conc]
+
+    @test s1.probs == s2.probs
+
+    for i in eachindex(s1.mean)
+        @test isapprox(s2.mean[i], s1.mean[i]; rtol=1e-12, atol=1e-12)
+        @test isapprox(s2.median[i], s1.median[i]; rtol=1e-12, atol=1e-12)
+    end
+
+    for p in s1.probs
+        q1 = s1.quantiles[p]
+        q2 = s2.quantiles[p]
+        for i in eachindex(q1)
+            @test isapprox(q2[i], q1[i]; rtol=1e-12, atol=1e-12)
         end
     end
 end

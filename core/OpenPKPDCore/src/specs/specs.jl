@@ -158,9 +158,9 @@ seed:
 n:
 - number of individuals
 """
-struct IIVSpec{K <: RandomEffectKind}
+struct IIVSpec{K<:RandomEffectKind}
     kind::K
-    omegas::Dict{Symbol, Float64}
+    omegas::Dict{Symbol,Float64}
     seed::UInt64
     n::Int
 end
@@ -170,7 +170,7 @@ Optional covariates per individual.
 For v1 we keep covariates as a Dict.
 """
 struct IndividualCovariates
-    values::Dict{Symbol, Float64}
+    values::Dict{Symbol,Float64}
 end
 
 """
@@ -185,6 +185,6 @@ covariates:
 """
 struct PopulationSpec{MS}
     base_model_spec::MS
-    iiv::Union{Nothing, IIVSpec}
+    iiv::Union{Nothing,IIVSpec}
     covariates::Vector{IndividualCovariates}
 end

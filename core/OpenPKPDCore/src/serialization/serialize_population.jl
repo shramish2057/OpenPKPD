@@ -1,6 +1,6 @@
 export serialize_population_execution, write_population_json
 
-function _serialize_iiv(iiv::Union{Nothing, IIVSpec})
+function _serialize_iiv(iiv::Union{Nothing,IIVSpec})
     if iiv === nothing
         return nothing
     end
@@ -16,21 +16,19 @@ function _serialize_population_spec(pop::PopulationSpec)
     return Dict(
         "base_model_spec" => _serialize_model_spec(pop.base_model_spec),
         "iiv" => _serialize_iiv(pop.iiv),
-        "covariates" => [
-            Dict(String(k) => v for (k, v) in c.values) for c in pop.covariates
-        ],
+        "covariates" =>
+            [Dict(String(k) => v for (k, v) in c.values) for c in pop.covariates],
     )
 end
 
 function _serialize_population_result(popres::PopulationResult)
     return Dict(
         "metadata" => popres.metadata,
-        "params" => [
-            Dict(String(k) => v for (k, v) in d) for d in popres.params
-        ],
-        "individuals" => [
-            _serialize_results(r) for r in popres.individuals
-        ],
+        "params" => [Dict(String(k) => v for (k, v) in d) for d in popres.params],
+        "summaries" => Dict(
+            String(k) => _serialize_population_summary(v) for (k, v) in popres.summaries
+        ),
+        "individuals" => [_serialize_results(r) for r in popres.individuals],
     )
 end
 
@@ -65,7 +63,17 @@ end
 function write_population_json(path::AbstractString; kwargs...)
     artifact = serialize_population_execution(; kwargs...)
     open(path, "w") do io
-        JSON.print(io, artifact; indent = 2)
+        JSON.print(io, artifact; indent=2)
     end
     return path
+end
+
+function _serialize_population_summary(s::PopulationSummary)
+    return Dict(
+        "observation" => String(s.observation),
+        "probs" => s.probs,
+        "mean" => s.mean,
+        "median" => s.median,
+        "quantiles" => Dict(string(p) => v for (p, v) in s.quantiles),
+    )
 end
