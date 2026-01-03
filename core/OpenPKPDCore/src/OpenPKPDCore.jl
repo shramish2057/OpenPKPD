@@ -60,6 +60,7 @@ include("engine/pkpd_coupled.jl")
 # ------------------------------------------------------------------
 include("engine/iov.jl")
 include("engine/segment_sim.jl")
+include("engine/segment_sim_pkpd.jl")
 include("engine/covariates.jl")
 include("engine/population.jl")
 

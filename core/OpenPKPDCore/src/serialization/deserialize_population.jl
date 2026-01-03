@@ -54,6 +54,7 @@ Returns a NamedTuple:
 - population_spec
 - grid
 - solver
+- pd_spec (may be nothing)
 """
 function deserialize_population_execution(artifact::Dict)
     schema = String(artifact["artifact_schema_version"])
@@ -73,7 +74,12 @@ function deserialize_population_execution(artifact::Dict)
     grid = _parse_grid(_to_dict(artifact["grid"]))
     solver = _parse_solver(_to_dict(artifact["solver"]))
 
-    return (population_spec=pop_spec, grid=grid, solver=solver)
+    pd_spec = nothing
+    if haskey(artifact, "pd_spec")
+        pd_spec = _parse_pd_spec(_to_dict(artifact["pd_spec"]))
+    end
+
+    return (population_spec=pop_spec, grid=grid, solver=solver, pd_spec=pd_spec)
 end
 
 """
@@ -82,7 +88,9 @@ Returns PopulationResult.
 """
 function replay_population_execution(artifact::Dict)::PopulationResult
     parsed = deserialize_population_execution(artifact)
-    return simulate_population(parsed.population_spec, parsed.grid, parsed.solver)
+    return simulate_population(
+        parsed.population_spec, parsed.grid, parsed.solver; pd_spec=parsed.pd_spec
+    )
 end
 
 function _parse_covariate_model(d)::Union{Nothing,CovariateModel}

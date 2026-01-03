@@ -42,6 +42,7 @@ Stores:
 - grid
 - solver
 - population_result (including per-individual outputs)
+- pd_spec (optional, for coupled PKPD population simulations)
 - schema version and semantics fingerprint
 """
 function serialize_population_execution(;
@@ -49,6 +50,7 @@ function serialize_population_execution(;
     grid::SimGrid,
     solver::SolverSpec,
     result::PopulationResult,
+    pd_spec::Union{Nothing,PDSpec}=nothing,
 )
     artifact = Dict(
         "artifact_type" => "population",
@@ -59,6 +61,11 @@ function serialize_population_execution(;
         "solver" => _serialize_solver(solver),
         "population_result" => _serialize_population_result(result),
     )
+
+    if pd_spec !== nothing
+        artifact["pd_spec"] = _serialize_pd_spec(pd_spec)
+    end
+
     return artifact
 end
 

@@ -151,7 +151,12 @@ function compute_population_summary(
     return PopulationSummary(observation, probs, mean_v, median_v, qmap)
 end
 
-function simulate_population(pop::PopulationSpec, grid::SimGrid, solver::SolverSpec)
+function simulate_population(
+    pop::PopulationSpec,
+    grid::SimGrid,
+    solver::SolverSpec;
+    pd_spec::Union{Nothing,PDSpec}=nothing,
+)
     base = pop.base_model_spec
 
     # Determine population size and RNG setup for IIV
@@ -231,27 +236,51 @@ function simulate_population(pop::PopulationSpec, grid::SimGrid, solver::SolverS
             realized_params[i] = snap
         end
 
-        # 4) Simulate with or without IOV
-        if pop.iov === nothing
-            spec_i = ModelSpec(base.kind, base.name * "_i$(i)", params_i, base.doses)
-            individuals[i] = simulate(spec_i, grid, solver)
-        else
-            # Individual-specific kappas stream, deterministic
-            starts = occ_starts::Vector{Float64}
-            kappas = sample_iov_kappas(
-                pop.iov.pis, length(starts), pop.iov.seed + UInt64(i)
-            )
+        # 4) Simulate with or without IOV, with or without PKPD
+        spec_i = ModelSpec(base.kind, base.name * "_i$(i)", params_i, base.doses)
 
-            params_segments = Vector{typeof(params_i)}(undef, length(starts))
-            for occ in 1:length(starts)
-                p_occ, _ = apply_iov(params_i, kappas[occ])
-                params_segments[occ] = p_occ
+        if pd_spec === nothing
+            # PK-only simulation
+            if pop.iov === nothing
+                individuals[i] = simulate(spec_i, grid, solver)
+            else
+                # Individual-specific kappas stream, deterministic
+                starts = occ_starts::Vector{Float64}
+                kappas = sample_iov_kappas(
+                    pop.iov.pis, length(starts), pop.iov.seed + UInt64(i)
+                )
+
+                pk_params_segments = Vector{typeof(params_i)}(undef, length(starts))
+                for occ in 1:length(starts)
+                    p_occ, _ = apply_iov(params_i, kappas[occ])
+                    pk_params_segments[occ] = p_occ
+                end
+
+                individuals[i] = simulate_segmented_pk(
+                    spec_i, grid, solver, starts, pk_params_segments
+                )
             end
+        else
+            # Coupled PKPD simulation
+            if pop.iov === nothing
+                individuals[i] = simulate_pkpd_coupled(spec_i, pd_spec, grid, solver)
+            else
+                # Individual-specific kappas stream, deterministic
+                starts = occ_starts::Vector{Float64}
+                kappas = sample_iov_kappas(
+                    pop.iov.pis, length(starts), pop.iov.seed + UInt64(i)
+                )
 
-            spec_i = ModelSpec(base.kind, base.name * "_i$(i)", params_i, base.doses)
-            individuals[i] = simulate_segmented_pk(
-                spec_i, grid, solver, starts, params_segments
-            )
+                pk_params_segments = Vector{typeof(params_i)}(undef, length(starts))
+                for occ in 1:length(starts)
+                    p_occ, _ = apply_iov(params_i, kappas[occ])
+                    pk_params_segments[occ] = p_occ
+                end
+
+                individuals[i] = simulate_segmented_pkpd_coupled(
+                    spec_i, pd_spec, grid, solver, starts, pk_params_segments
+                )
+            end
         end
     end
 
@@ -260,6 +289,16 @@ function simulate_population(pop::PopulationSpec, grid::SimGrid, solver::SolverS
         summaries[:conc] = compute_population_summary(
             individuals, :conc; probs=[0.05, 0.95]
         )
+    end
+
+    # Add PD observation summary if pd_spec is provided
+    if pd_spec !== nothing
+        pd_obs = pd_spec.output_observation
+        if haskey(individuals[1].observations, pd_obs)
+            summaries[pd_obs] = compute_population_summary(
+                individuals, pd_obs; probs=[0.05, 0.95]
+            )
+        end
     end
 
     metadata = Dict{String,Any}(

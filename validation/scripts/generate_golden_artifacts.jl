@@ -176,6 +176,43 @@ function gen_population_iov_iv()
     return serialize_population_execution(population_spec=pop, grid=grid, solver=solver, result=res)
 end
 
+function gen_population_iov_pkpd()
+    pk = ModelSpec(
+        OneCompIVBolus(),
+        "golden_iov_pkpd",
+        OneCompIVBolusParams(5.0, 50.0),
+        [DoseEvent(0.0, 100.0), DoseEvent(12.0, 100.0)],
+    )
+
+    Kin = 10.0
+    Kout = 0.5
+    Rss = Kin / Kout
+
+    pd = PDSpec(
+        IndirectResponseTurnover(),
+        "golden_turnover",
+        IndirectResponseTurnoverParams(Kin, Kout, Rss, 0.8, 0.5),
+        :conc,
+        :response,
+    )
+
+    iov = IOVSpec(LogNormalIIV(), Dict(:CL => 0.3), UInt64(2222), OccasionDefinition(:dose_times))
+    pop = PopulationSpec(pk, nothing, iov, nothing, IndividualCovariates[])
+
+    grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
+    solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
+
+    res = simulate_population(pop, grid, solver; pd_spec=pd)
+
+    return serialize_population_execution(
+        population_spec=pop,
+        grid=grid,
+        solver=solver,
+        result=res,
+        pd_spec=pd,
+    )
+end
+
 
 function main()
     mkpath("validation/golden")
@@ -189,6 +226,7 @@ function main()
         "sensitivity_single_iv.json" => gen_sensitivity_single_iv(),
         "sensitivity_population_iv.json" => gen_sensitivity_population_iv(),
         "population_iov_iv.json" => gen_population_iov_iv(),
+        "population_iov_pkpd.json" => gen_population_iov_pkpd(),
     )
 
     for (fname, art) in artifacts
