@@ -603,7 +603,7 @@ end
     )
 
     iiv = IIVSpec(LogNormalIIV(), Dict(:CL => 0.2, :V => 0.1), UInt64(12345), 20)
-    pop = PopulationSpec(base, iiv, IndividualCovariates[])
+    pop = PopulationSpec(base, iiv, nothing, nothing, IndividualCovariates[])
 
     grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
     solver = SolverSpec(:Tsit5, 1e-9, 1e-11, 10^7)
@@ -639,7 +639,7 @@ end
         [DoseEvent(0.0, 100.0)],
     )
 
-    pop = PopulationSpec(base, nothing, IndividualCovariates[])
+    pop = PopulationSpec(base, nothing, nothing, nothing, IndividualCovariates[])
 
     grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
     solver = SolverSpec(:Tsit5, 1e-9, 1e-11, 10^7)
@@ -666,7 +666,7 @@ end
     )
 
     iiv = IIVSpec(LogNormalIIV(), Dict(:CL => 0.2, :V => 0.1), UInt64(424242), 5)
-    pop = PopulationSpec(base, iiv, IndividualCovariates[])
+    pop = PopulationSpec(base, iiv, nothing, nothing, IndividualCovariates[])
 
     grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
     solver = SolverSpec(:Tsit5, 1e-9, 1e-11, 10^7)
@@ -745,7 +745,7 @@ end
     )
 
     iiv = IIVSpec(LogNormalIIV(), Dict(:CL => 0.2, :V => 0.1), UInt64(9999), 20)
-    pop = PopulationSpec(base, iiv, IndividualCovariates[])
+    pop = PopulationSpec(base, iiv, nothing, nothing, IndividualCovariates[])
 
     grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
     solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
@@ -802,7 +802,7 @@ end
     )
 
     iiv = IIVSpec(LogNormalIIV(), Dict(:CL => 0.2, :V => 0.1), UInt64(9999), 20)
-    pop = PopulationSpec(base, iiv, IndividualCovariates[])
+    pop = PopulationSpec(base, iiv, nothing, nothing, IndividualCovariates[])
 
     grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
     solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
@@ -829,4 +829,43 @@ end
             r2.pert_summary_mean[i], r1.pert_summary_mean[i]; rtol=1e-12, atol=1e-12
         )
     end
+end
+
+@testset "IOV changes parameters across occasions deterministically" begin
+    base = ModelSpec(
+        OneCompIVBolus(),
+        "iov_pop_iv",
+        OneCompIVBolusParams(5.0, 50.0),
+        [DoseEvent(0.0, 100.0), DoseEvent(12.0, 100.0)],
+    )
+
+    iiv = nothing
+    iov = IOVSpec(
+        LogNormalIIV(), Dict(:CL => 0.3), UInt64(1234), OccasionDefinition(:dose_times)
+    )
+
+    pop = PopulationSpec(base, iiv, iov, nothing, IndividualCovariates[])
+
+    grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
+    solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
+
+    res1 = simulate_population(pop, grid, solver)
+    res2 = simulate_population(pop, grid, solver)
+
+    # Deterministic replay
+    c1 = res1.individuals[1].observations[:conc]
+    c2 = res2.individuals[1].observations[:conc]
+    for i in eachindex(c1)
+        @test isapprox(c1[i], c2[i]; rtol=1e-12, atol=1e-12)
+    end
+
+    # Behavioral: after second dose, concentration trajectory should differ from a non-IOV run
+    pop_no_iov = PopulationSpec(base, nothing, nothing, nothing, IndividualCovariates[])
+    base_res = simulate_population(pop_no_iov, grid, solver)
+
+    c_base = base_res.individuals[1].observations[:conc]
+    # pick a time after 12.0, for example index where t == 13
+    idx13 = findfirst(==(13.0), grid.saveat)
+    @test idx13 !== nothing
+    @test abs(c1[idx13] - c_base[idx13]) > 0.0
 end

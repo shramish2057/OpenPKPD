@@ -39,9 +39,13 @@ end
 
 function _parse_population_spec(d)::PopulationSpec
     base = _parse_model_spec(_to_dict(d["base_model_spec"]))
-    iiv = _parse_iiv(_to_dict(d["iiv"]))
+    iiv = _parse_iiv(d["iiv"] === nothing ? nothing : _to_dict(d["iiv"]))
+    iov = _parse_iov(d["iov"] === nothing ? nothing : _to_dict(d["iov"]))
+    cm = _parse_covariate_model(
+        d["covariate_model"] === nothing ? nothing : _to_dict(d["covariate_model"])
+    )
     covs = _parse_covariates(d["covariates"])
-    return PopulationSpec(base, iiv, covs)
+    return PopulationSpec(base, iiv, iov, cm, covs)
 end
 
 """
@@ -79,4 +83,53 @@ Returns PopulationResult.
 function replay_population_execution(artifact::Dict)::PopulationResult
     parsed = deserialize_population_execution(artifact)
     return simulate_population(parsed.population_spec, parsed.grid, parsed.solver)
+end
+
+function _parse_covariate_model(d)::Union{Nothing,CovariateModel}
+    if d === nothing
+        return nothing
+    end
+    name = String(d["name"])
+    effs_in = d["effects"]
+    effs = CovariateEffect[]
+    for item in effs_in
+        kind_s = String(item["kind"])
+        param = Symbol(String(item["param"]))
+        cov = Symbol(String(item["covariate"]))
+        beta = Float64(item["beta"])
+        ref = Float64(item["ref"])
+
+        if kind_s == "LinearCovariate"
+            push!(effs, CovariateEffect(LinearCovariate(), param, cov, beta, ref))
+        elseif kind_s == "PowerCovariate"
+            push!(effs, CovariateEffect(PowerCovariate(), param, cov, beta, ref))
+        elseif kind_s == "ExpCovariate"
+            push!(effs, CovariateEffect(ExpCovariate(), param, cov, beta, ref))
+        else
+            error("Unsupported covariate kind: $(kind_s)")
+        end
+    end
+    return CovariateModel(name, effs)
+end
+
+function _parse_iov(d)::Union{Nothing,IOVSpec}
+    if d === nothing
+        return nothing
+    end
+
+    kind_str = String(d["kind"])
+    # Normalize both qualified and unqualified forms
+    if kind_str != "OpenPKPDCore.LogNormalIIV" && kind_str != "LogNormalIIV"
+        error("Unsupported IOV kind in artifact: $(kind_str)")
+    end
+
+    pis = Dict{Symbol,Float64}()
+    for (k, v) in d["pis"]
+        pis[Symbol(String(k))] = Float64(v)
+    end
+
+    seed = UInt64(Int(d["seed"]))
+    mode = Symbol(String(d["occasion_def"]["mode"]))
+
+    return IOVSpec(LogNormalIIV(), pis, seed, OccasionDefinition(mode))
 end

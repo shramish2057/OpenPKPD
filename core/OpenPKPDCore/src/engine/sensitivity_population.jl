@@ -35,7 +35,9 @@ function run_population_sensitivity(
         pert_params,
         pop.base_model_spec.doses,
     )
-    pert_pop = PopulationSpec(pert_base, pop.iiv, pop.covariates)
+    pert_pop = PopulationSpec(
+        pert_base, pop.iiv, pop.iov, pop.covariate_model, pop.covariates
+    )
 
     pert_res = simulate_population(pert_pop, grid, solver)
 

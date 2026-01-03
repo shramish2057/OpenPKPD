@@ -18,6 +18,8 @@ function _serialize_population_spec(pop::PopulationSpec)
         "iiv" => _serialize_iiv(pop.iiv),
         "covariates" =>
             [Dict(String(k) => v for (k, v) in c.values) for c in pop.covariates],
+        "covariate_model" => _serialize_covariate_model(pop.covariate_model),
+        "iov" => _serialize_iov(pop.iov),
     )
 end
 
@@ -75,5 +77,42 @@ function _serialize_population_summary(s::PopulationSummary)
         "mean" => s.mean,
         "median" => s.median,
         "quantiles" => Dict(string(p) => v for (p, v) in s.quantiles),
+    )
+end
+
+function _serialize_covariate_model(cm::Union{Nothing,CovariateModel})
+    if cm === nothing
+        return nothing
+    end
+    effs = Vector{Any}(undef, length(cm.effects))
+    for (i, e) in enumerate(cm.effects)
+        kind = if e.kind isa LinearCovariate
+            "LinearCovariate"
+        elseif e.kind isa PowerCovariate
+            "PowerCovariate"
+        else
+            "ExpCovariate"
+        end
+
+        effs[i] = Dict(
+            "kind" => kind,
+            "param" => String(e.param),
+            "covariate" => String(e.covariate),
+            "beta" => e.beta,
+            "ref" => e.ref,
+        )
+    end
+    return Dict("name" => cm.name, "effects" => effs)
+end
+
+function _serialize_iov(iov::Union{Nothing,IOVSpec})
+    if iov === nothing
+        return nothing
+    end
+    return Dict(
+        "kind" => string(typeof(iov.kind)),
+        "pis" => Dict(String(k) => v for (k, v) in iov.pis),
+        "seed" => Int(iov.seed),
+        "occasion_def" => Dict("mode" => String(iov.occasion_def.mode)),
     )
 end

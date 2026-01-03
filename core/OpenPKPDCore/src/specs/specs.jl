@@ -165,6 +165,77 @@ struct IIVSpec{K<:RandomEffectKind}
     n::Int
 end
 
+export IOVSpec, OccasionDefinition
+
+"""
+OccasionDefinition defines how dosing occasions are determined.
+
+Supported v1 mode:
+- :dose_times -> each unique dose time strictly greater than t0 starts a new occasion
+- t0 is occasion 1
+"""
+struct OccasionDefinition
+    mode::Symbol
+end
+
+"""
+IOV specification.
+
+pis:
+- Dict mapping parameter symbol to pi (std dev of kappa)
+
+seed:
+- deterministic seed for IOV RNG stream (separate from IIV)
+
+occasion_def:
+- how occasions are determined
+"""
+struct IOVSpec{K<:RandomEffectKind}
+    kind::K
+    pis::Dict{Symbol,Float64}
+    seed::UInt64
+    occasion_def::OccasionDefinition
+end
+
+export CovariateEffectKind, LinearCovariate, PowerCovariate, ExpCovariate
+export CovariateEffect, CovariateModel
+
+abstract type CovariateEffectKind end
+
+"""
+Linear covariate model:
+theta_i = theta_pop * (1 + beta * (cov - ref))
+"""
+struct LinearCovariate <: CovariateEffectKind end
+
+"""
+Power covariate model:
+theta_i = theta_pop * (cov / ref) ^ beta
+"""
+struct PowerCovariate <: CovariateEffectKind end
+
+"""
+Exponential covariate model:
+theta_i = theta_pop * exp(beta * (cov - ref))
+"""
+struct ExpCovariate <: CovariateEffectKind end
+
+struct CovariateEffect{K<:CovariateEffectKind}
+    kind::K
+    param::Symbol
+    covariate::Symbol
+    beta::Float64
+    ref::Float64
+end
+
+"""
+A set of covariate effects applied to parameters.
+"""
+struct CovariateModel
+    name::String
+    effects::Vector{CovariateEffect}
+end
+
 """
 Optional covariates per individual.
 For v1 we keep covariates as a Dict.
@@ -186,5 +257,7 @@ covariates:
 struct PopulationSpec{MS}
     base_model_spec::MS
     iiv::Union{Nothing,IIVSpec}
+    iov::Union{Nothing,IOVSpec}
+    covariate_model::Union{Nothing,CovariateModel}
     covariates::Vector{IndividualCovariates}
 end

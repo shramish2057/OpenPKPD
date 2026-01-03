@@ -45,6 +45,7 @@ include("engine/sensitivity_population.jl")
 # Core simulation engine
 # ------------------------------------------------------------------
 include("engine/events.jl")
+include("engine/callbacks.jl")
 include("engine/solve.jl")
 
 # ------------------------------------------------------------------
@@ -57,6 +58,9 @@ include("engine/pkpd_coupled.jl")
 # Population engine
 # Defines PopulationSpec, PopulationResult, IIV, etc.
 # ------------------------------------------------------------------
+include("engine/iov.jl")
+include("engine/segment_sim.jl")
+include("engine/covariates.jl")
 include("engine/population.jl")
 
 # ------------------------------------------------------------------
