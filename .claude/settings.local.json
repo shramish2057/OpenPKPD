@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./bin/openpkpd help:*)",
+      "Bash(./bin/openpkpd version:*)",
+      "Bash(./bin/openpkpd replay:*)",
+      "Bash(./bin/openpkpd metrics:*)",
+      "Bash(python/scripts/smoke_python.sh:*)",
+      "Bash(pytest:*)",
+      "Bash(wc:*)",
+      "Bash(./bin/openpkpd simulate:*)",
+      "Bash(python:*)",
+      "Bash(find:*)"
+    ]
+  }
+}

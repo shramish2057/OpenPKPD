@@ -59,41 +59,72 @@ end
 
 ### Example: Basic IIV
 
-```julia
-using OpenPKPDCore
+=== "Julia"
 
-# Base model (typical values)
-base_params = OneCompIVBolusParams(5.0, 50.0)  # CL=5, V=50
-base_spec = ModelSpec(
-    OneCompIVBolus(),
-    "pop_iv",
-    base_params,
-    [DoseEvent(0.0, 100.0)]
-)
+    ```julia
+    using OpenPKPDCore
 
-# IIV specification: 30% CV on CL, 20% CV on V
-# omega = sqrt(ln(1 + CV^2)) ≈ CV for small CV
-iiv = IIVSpec(
-    LogNormalIIV(),
-    Dict(:CL => 0.3, :V => 0.2),  # omegas
-    UInt64(12345),                 # seed
-    100                            # n individuals
-)
+    # Base model (typical values)
+    base_params = OneCompIVBolusParams(5.0, 50.0)  # CL=5, V=50
+    base_spec = ModelSpec(
+        OneCompIVBolus(),
+        "pop_iv",
+        base_params,
+        [DoseEvent(0.0, 100.0)]
+    )
 
-# Population specification (no IOV, no covariates)
-pop = PopulationSpec(base_spec, iiv, nothing, nothing, [])
+    # IIV specification: 30% CV on CL, 20% CV on V
+    # omega = sqrt(ln(1 + CV^2)) ≈ CV for small CV
+    iiv = IIVSpec(
+        LogNormalIIV(),
+        Dict(:CL => 0.3, :V => 0.2),  # omegas
+        UInt64(12345),                 # seed
+        100                            # n individuals
+    )
 
-# Run simulation
-grid = SimGrid(0.0, 24.0, collect(0.0:0.5:24.0))
-solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10_000_000)
+    # Population specification (no IOV, no covariates)
+    pop = PopulationSpec(base_spec, iiv, nothing, nothing, [])
 
-result = simulate_population(pop, grid, solver)
+    # Run simulation
+    grid = SimGrid(0.0, 24.0, collect(0.0:0.5:24.0))
+    solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10_000_000)
 
-# Access results
-println("Number of individuals: ", length(result.individuals))
-println("First individual CL: ", result.params[1][:CL])
-println("Mean concentration at t=0: ", result.summaries[:conc].mean[1])
-```
+    result = simulate_population(pop, grid, solver)
+
+    # Access results
+    println("Number of individuals: ", length(result.individuals))
+    println("First individual CL: ", result.params[1][:CL])
+    println("Mean concentration at t=0: ", result.summaries[:conc].mean[1])
+    ```
+
+=== "Python"
+
+    ```python
+    import openpkpd
+
+    openpkpd.init_julia()
+
+    # Run population simulation with IIV
+    result = openpkpd.simulate_population_iv_bolus(
+        cl=5.0,              # Typical CL
+        v=50.0,              # Typical V
+        doses=[{"time": 0.0, "amount": 100.0}],
+        t0=0.0,
+        t1=24.0,
+        saveat=[t * 0.5 for t in range(49)],
+        n=100,               # Number of individuals
+        seed=12345,          # RNG seed for reproducibility
+        omegas={             # IIV standard deviations (30% on CL, 20% on V)
+            "CL": 0.3,
+            "V": 0.2
+        }
+    )
+
+    # Access results
+    print("Number of individuals:", len(result["individuals"]))
+    print("First individual CL:", result["params"][0]["CL"])
+    print("Mean concentration at t=0:", result["summaries"]["conc"]["mean"][0])
+    ```
 
 ### Population Results
 

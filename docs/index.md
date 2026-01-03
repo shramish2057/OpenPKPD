@@ -93,14 +93,28 @@ print("Concentrations:", result["observations"]["conc"])
 
 ### Models
 
-OpenPKPD provides validated pharmacokinetic and pharmacodynamic models:
+OpenPKPD provides a comprehensive library of validated pharmacokinetic and pharmacodynamic models:
 
-| Model Type | Model | Description |
-|------------|-------|-------------|
-| PK | `OneCompIVBolus` | One-compartment with IV bolus dosing |
-| PK | `OneCompOralFirstOrder` | One-compartment with first-order oral absorption |
-| PD | `DirectEmax` | Direct effect Emax model |
-| PD | `IndirectResponseTurnover` | Indirect response with inhibition |
+#### Pharmacokinetic Models
+
+| Model | Description | Key Use Cases |
+|-------|-------------|---------------|
+| `OneCompIVBolus` | One-compartment with IV bolus dosing | Simple IV drugs, initial PK characterization |
+| `OneCompOralFirstOrder` | One-compartment with first-order oral absorption | Immediate-release oral formulations |
+| `TwoCompIVBolus` | Two-compartment with IV bolus dosing | Distribution phase modeling, antibodies |
+| `TwoCompOral` | Two-compartment with first-order oral absorption | Oral drugs with tissue distribution |
+| `ThreeCompIVBolus` | Three-compartment with IV bolus dosing | Deep tissue distribution, long half-life drugs |
+| `TransitAbsorption` | Transit compartment absorption model | Delayed/complex oral absorption, GI transit |
+| `MichaelisMentenElimination` | Saturable (nonlinear) elimination | High-dose drugs, biologics, enzyme saturation |
+
+#### Pharmacodynamic Models
+
+| Model | Description | Key Use Cases |
+|-------|-------------|---------------|
+| `DirectEmax` | Direct effect Emax model | Immediate drug effects, receptor binding |
+| `SigmoidEmax` | Sigmoid Emax with Hill coefficient | Steep dose-response, cooperative binding |
+| `BiophaseEquilibration` | Effect compartment model | CNS effects, delayed equilibration |
+| `IndirectResponseTurnover` | Indirect response turnover model | Enzyme/receptor modulation, biomarkers |
 
 ### Non-Compartmental Analysis (NCA)
 

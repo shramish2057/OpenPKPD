@@ -1,6 +1,31 @@
 # PK/PD Models Reference
 
-OpenPKPD provides validated pharmacokinetic (PK) and pharmacodynamic (PD) models for drug concentration and effect simulation.
+OpenPKPD provides a comprehensive library of validated pharmacokinetic (PK) and pharmacodynamic (PD) models for drug concentration and effect simulation.
+
+## Model Summary
+
+### Pharmacokinetic Models
+
+| Model | Compartments | Parameters | Route | Use Case |
+|-------|--------------|------------|-------|----------|
+| `OneCompIVBolus` | 1 | CL, V | IV bolus | Simple IV drugs |
+| `OneCompOralFirstOrder` | 2 | Ka, CL, V | Oral | Simple oral drugs |
+| `TwoCompIVBolus` | 2 | CL, V1, Q, V2 | IV bolus | Distribution kinetics |
+| `TwoCompOral` | 3 | Ka, CL, V1, Q, V2 | Oral | Oral with distribution |
+| `ThreeCompIVBolus` | 3 | CL, V1, Q2, V2, Q3, V3 | IV bolus | Deep tissue distribution |
+| `TransitAbsorption` | N+1 | N, Ktr, Ka, CL, V | Oral | Delayed absorption |
+| `MichaelisMentenElimination` | 1 | Vmax, Km, V | IV bolus | Saturable elimination |
+
+### Pharmacodynamic Models
+
+| Model | Type | Parameters | Mechanism |
+|-------|------|------------|-----------|
+| `DirectEmax` | Direct | E0, Emax, EC50 | Hyperbolic response |
+| `SigmoidEmax` | Direct | E0, Emax, EC50, gamma | Hill equation |
+| `IndirectResponseTurnover` | Indirect | Kin, Kout, R0, Imax, IC50 | Inhibition of output |
+| `BiophaseEquilibration` | Effect compartment | ke0, E0, Emax, EC50 | PK-PD hysteresis |
+
+---
 
 ## Pharmacokinetic Models
 
@@ -14,8 +39,8 @@ The simplest PK model representing instantaneous drug administration into a sing
 
 | Parameter | Symbol | Units | Description | Constraints |
 |-----------|--------|-------|-------------|-------------|
-| `CL` | CL | volume/time | Clearance | CL > 0 |
-| `V` | V | volume | Volume of distribution | V > 0 |
+| `CL` | CL | L/h | Clearance | CL > 0 |
+| `V` | V | L | Volume of distribution | V > 0 |
 
 **State Variables**:
 
@@ -27,52 +52,40 @@ The simplest PK model representing instantaneous drug administration into a sing
 
 $$\frac{dA}{dt} = -\frac{CL}{V} \cdot A$$
 
-**Observation**:
+**Observation**: $C = \frac{A}{V}$
 
-$$C_{conc} = \frac{A}{V}$$
+**Half-life**: $t_{1/2} = \frac{0.693 \cdot V}{CL}$
 
-**Dose Target**: Central compartment (index 1)
-
-**Example**:
+**Example (Julia)**:
 
 ```julia
 using OpenPKPDCore
 
-# Parameters: CL = 5 L/h, V = 50 L
-params = OneCompIVBolusParams(5.0, 50.0)
-
-# Single 100 mg dose at t=0
+params = OneCompIVBolusParams(5.0, 50.0)  # CL=5 L/h, V=50 L
 doses = [DoseEvent(0.0, 100.0)]
+spec = ModelSpec(OneCompIVBolus(), "iv_bolus", params, doses)
 
-# Create model specification
-spec = ModelSpec(OneCompIVBolus(), "iv_bolus_example", params, doses)
-
-# Simulation grid: 0 to 24 hours
 grid = SimGrid(0.0, 24.0, collect(0.0:0.5:24.0))
-
-# High-precision solver
 solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10_000_000)
 
-# Run simulation
 result = simulate(spec, grid, solver)
-
-# Initial concentration: dose/V = 100/50 = 2 mg/L
-println("C(0) = ", result.observations[:conc][1])  # 2.0
-
-# Half-life: t½ = 0.693 * V / CL = 0.693 * 50 / 5 = 6.93 h
 ```
 
-**Multiple Doses**:
+**Example (Python)**:
 
-```julia
-# Multiple doses: 100 mg at t=0, 50 mg at t=12
-doses = [
-    DoseEvent(0.0, 100.0),
-    DoseEvent(12.0, 50.0)
-]
+```python
+import openpkpd
 
-spec = ModelSpec(OneCompIVBolus(), "multi_dose", params, doses)
-result = simulate(spec, grid, solver)
+openpkpd.init_julia()
+
+result = openpkpd.simulate_pk_iv_bolus(
+    cl=5.0,
+    v=50.0,
+    doses=[{"time": 0.0, "amount": 100.0}],
+    t0=0.0,
+    t1=24.0,
+    saveat=[float(t) for t in range(25)]
+)
 ```
 
 ---
@@ -87,9 +100,9 @@ One-compartment model with first-order absorption from a depot (gut) compartment
 
 | Parameter | Symbol | Units | Description | Constraints |
 |-----------|--------|-------|-------------|-------------|
-| `Ka` | Ka | 1/time | Absorption rate constant | Ka > 0 |
-| `CL` | CL | volume/time | Clearance | CL > 0 |
-| `V` | V | volume | Volume of distribution | V > 0 |
+| `Ka` | Ka | 1/h | Absorption rate constant | Ka > 0 |
+| `CL` | CL | L/h | Clearance | CL > 0 |
+| `V` | V | L | Volume of distribution | V > 0 |
 
 **State Variables**:
 
@@ -104,47 +117,314 @@ $$\frac{dA_{gut}}{dt} = -K_a \cdot A_{gut}$$
 
 $$\frac{dA_{central}}{dt} = K_a \cdot A_{gut} - \frac{CL}{V} \cdot A_{central}$$
 
-**Observation**:
+**Observation**: $C = \frac{A_{central}}{V}$
 
-$$C_{conc} = \frac{A_{central}}{V}$$
+**Dose Target**: Gut compartment
 
-**Dose Target**: Gut compartment (index 1)
+**Tmax (approximate)**: $t_{max} \approx \frac{\ln(K_a) - \ln(k_{el})}{K_a - k_{el}}$ where $k_{el} = CL/V$
 
-**Example**:
+**Example (Julia)**:
 
 ```julia
-using OpenPKPDCore
-
-# Parameters: Ka = 1.5 /h, CL = 5 L/h, V = 50 L
-params = OneCompOralFirstOrderParams(1.5, 5.0, 50.0)
-
-# 200 mg oral dose at t=0
+params = OneCompOralFirstOrderParams(1.5, 5.0, 50.0)  # Ka=1.5/h, CL=5, V=50
 doses = [DoseEvent(0.0, 200.0)]
-
-spec = ModelSpec(OneCompOralFirstOrder(), "oral_example", params, doses)
-grid = SimGrid(0.0, 24.0, collect(0.0:0.25:24.0))
-solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10_000_000)
-
+spec = ModelSpec(OneCompOralFirstOrder(), "oral", params, doses)
 result = simulate(spec, grid, solver)
-
-# Concentration starts at 0 and rises to Cmax before declining
-println("C(0) = ", result.observations[:conc][1])   # ~0
-println("Times: ", result.t)
-println("Concentrations: ", result.observations[:conc])
 ```
 
-**Pharmacokinetic Metrics**:
+**Example (Python)**:
+
+```python
+result = openpkpd.simulate_pk_oral_first_order(
+    ka=1.5,
+    cl=5.0,
+    v=50.0,
+    doses=[{"time": 0.0, "amount": 200.0}],
+    t0=0.0,
+    t1=24.0
+)
+```
+
+---
+
+### Two-Compartment IV Bolus
+
+Two-compartment model with central and peripheral compartments, exhibiting bi-exponential decline.
+
+**Model Kind**: `TwoCompIVBolus`
+
+**Parameters**: `TwoCompIVBolusParams`
+
+| Parameter | Symbol | Units | Description | Constraints |
+|-----------|--------|-------|-------------|-------------|
+| `CL` | CL | L/h | Clearance from central | CL > 0 |
+| `V1` | V1 | L | Central volume | V1 > 0 |
+| `Q` | Q | L/h | Inter-compartmental clearance | Q > 0 |
+| `V2` | V2 | L | Peripheral volume | V2 > 0 |
+
+**Micro-rate Constants**:
+
+- $k_{10} = CL/V_1$ (elimination)
+- $k_{12} = Q/V_1$ (central to peripheral)
+- $k_{21} = Q/V_2$ (peripheral to central)
+
+**State Variables**:
+
+| State | Symbol | Description |
+|-------|--------|-------------|
+| `A_central` | A1 | Amount in central compartment |
+| `A_peripheral` | A2 | Amount in peripheral compartment |
+
+**Differential Equations**:
+
+$$\frac{dA_1}{dt} = -k_{10} \cdot A_1 - k_{12} \cdot A_1 + k_{21} \cdot A_2$$
+
+$$\frac{dA_2}{dt} = k_{12} \cdot A_1 - k_{21} \cdot A_2$$
+
+**Observation**: $C = \frac{A_1}{V_1}$
+
+**Bi-exponential Profile**:
+
+$$C(t) = A \cdot e^{-\alpha t} + B \cdot e^{-\beta t}$$
+
+Where $\alpha$ (distribution) > $\beta$ (elimination)
+
+**Example (Julia)**:
 
 ```julia
-# Calculate Cmax and AUC
-t = result.t
-c = result.observations[:conc]
+params = TwoCompIVBolusParams(10.0, 20.0, 15.0, 50.0)
+# CL=10 L/h, V1=20 L, Q=15 L/h, V2=50 L
+doses = [DoseEvent(0.0, 500.0)]
+spec = ModelSpec(TwoCompIVBolus(), "twocomp_iv", params, doses)
+result = simulate(spec, grid, solver)
+```
 
-cmax_val = cmax(t, c)
-auc_val = auc_trapezoid(t, c)
+**Example (Python)**:
 
-println("Cmax = ", cmax_val)
-println("AUC(0-24) = ", auc_val)
+```python
+result = openpkpd.simulate_pk_twocomp_iv_bolus(
+    cl=10.0,
+    v1=20.0,
+    q=15.0,
+    v2=50.0,
+    doses=[{"time": 0.0, "amount": 500.0}],
+    t0=0.0,
+    t1=48.0
+)
+```
+
+---
+
+### Two-Compartment Oral
+
+Two-compartment model with first-order oral absorption.
+
+**Model Kind**: `TwoCompOral`
+
+**Parameters**: `TwoCompOralParams`
+
+| Parameter | Symbol | Units | Description | Constraints |
+|-----------|--------|-------|-------------|-------------|
+| `Ka` | Ka | 1/h | Absorption rate constant | Ka > 0 |
+| `CL` | CL | L/h | Clearance from central | CL > 0 |
+| `V1` | V1 | L | Central volume | V1 > 0 |
+| `Q` | Q | L/h | Inter-compartmental clearance | Q > 0 |
+| `V2` | V2 | L | Peripheral volume | V2 > 0 |
+
+**State Variables**:
+
+| State | Symbol | Description |
+|-------|--------|-------------|
+| `A_gut` | A_gut | Amount in gut compartment |
+| `A_central` | A1 | Amount in central compartment |
+| `A_peripheral` | A2 | Amount in peripheral compartment |
+
+**Differential Equations**:
+
+$$\frac{dA_{gut}}{dt} = -K_a \cdot A_{gut}$$
+
+$$\frac{dA_1}{dt} = K_a \cdot A_{gut} - \frac{CL}{V_1} \cdot A_1 - \frac{Q}{V_1} \cdot A_1 + \frac{Q}{V_2} \cdot A_2$$
+
+$$\frac{dA_2}{dt} = \frac{Q}{V_1} \cdot A_1 - \frac{Q}{V_2} \cdot A_2$$
+
+**Example (Python)**:
+
+```python
+result = openpkpd.simulate_pk_twocomp_oral(
+    ka=1.2,
+    cl=8.0,
+    v1=25.0,
+    q=12.0,
+    v2=60.0,
+    doses=[{"time": 0.0, "amount": 400.0}],
+    t0=0.0,
+    t1=72.0
+)
+```
+
+---
+
+### Three-Compartment IV Bolus
+
+Three-compartment mammillary model with central, shallow peripheral, and deep peripheral compartments.
+
+**Model Kind**: `ThreeCompIVBolus`
+
+**Parameters**: `ThreeCompIVBolusParams`
+
+| Parameter | Symbol | Units | Description | Constraints |
+|-----------|--------|-------|-------------|-------------|
+| `CL` | CL | L/h | Clearance from central | CL > 0 |
+| `V1` | V1 | L | Central volume | V1 > 0 |
+| `Q2` | Q2 | L/h | Clearance to shallow peripheral | Q2 > 0 |
+| `V2` | V2 | L | Shallow peripheral volume | V2 > 0 |
+| `Q3` | Q3 | L/h | Clearance to deep peripheral | Q3 > 0 |
+| `V3` | V3 | L | Deep peripheral volume | V3 > 0 |
+
+**State Variables**:
+
+| State | Symbol | Description |
+|-------|--------|-------------|
+| `A_central` | A1 | Central compartment |
+| `A_periph1` | A2 | Shallow peripheral (rapid equilibration) |
+| `A_periph2` | A3 | Deep peripheral (slow equilibration) |
+
+**Micro-rate Constants**:
+
+- $k_{10} = CL/V_1$
+- $k_{12} = Q_2/V_1$, $k_{21} = Q_2/V_2$
+- $k_{13} = Q_3/V_1$, $k_{31} = Q_3/V_3$
+
+**Tri-exponential Profile**:
+
+$$C(t) = A \cdot e^{-\alpha t} + B \cdot e^{-\beta t} + C \cdot e^{-\gamma t}$$
+
+Where $\alpha$ > $\beta$ > $\gamma$
+
+**Use Cases**: Lipophilic drugs, anesthetics, drugs with deep tissue binding
+
+**Example (Python)**:
+
+```python
+result = openpkpd.simulate_pk_threecomp_iv_bolus(
+    cl=5.0,
+    v1=10.0,
+    q2=20.0,
+    v2=30.0,
+    q3=5.0,
+    v3=100.0,
+    doses=[{"time": 0.0, "amount": 1000.0}],
+    t0=0.0,
+    t1=168.0
+)
+```
+
+---
+
+### Transit Absorption
+
+Models delayed and complex oral absorption using a chain of transit compartments.
+
+**Model Kind**: `TransitAbsorption`
+
+**Parameters**: `TransitAbsorptionParams`
+
+| Parameter | Symbol | Units | Description | Constraints |
+|-----------|--------|-------|-------------|-------------|
+| `N` | N | - | Number of transit compartments | 1 ≤ N ≤ 20 |
+| `Ktr` | Ktr | 1/h | Transit rate constant | Ktr > 0 |
+| `Ka` | Ka | 1/h | Absorption rate from last transit | Ka > 0 |
+| `CL` | CL | L/h | Clearance | CL > 0 |
+| `V` | V | L | Volume of distribution | V > 0 |
+
+**State Variables**: N+1 total
+
+- Transit_1 through Transit_N
+- A_central
+
+**Differential Equations**:
+
+$$\frac{dTransit_1}{dt} = -K_{tr} \cdot Transit_1$$ (receives dose)
+
+$$\frac{dTransit_i}{dt} = K_{tr} \cdot Transit_{i-1} - K_{tr} \cdot Transit_i$$ (i > 1)
+
+$$\frac{dA_{central}}{dt} = K_a \cdot Transit_N - \frac{CL}{V} \cdot A_{central}$$
+
+**Mean Transit Time (MTT)**: $(N + 1) / K_{tr}$
+
+**Absorption Profile**: Gamma-like distribution (delayed peak, allows for lag time)
+
+**Use Cases**:
+- Controlled-release formulations
+- Enteric-coated tablets
+- Drugs with complex GI transit
+- When simple lag time is insufficient
+
+**Example (Python)**:
+
+```python
+result = openpkpd.simulate_pk_transit_absorption(
+    n_transit=5,
+    ktr=0.5,
+    ka=2.0,
+    cl=10.0,
+    v=70.0,
+    doses=[{"time": 0.0, "amount": 300.0}],
+    t0=0.0,
+    t1=24.0
+)
+```
+
+---
+
+### Michaelis-Menten Elimination
+
+Models saturable (capacity-limited) elimination kinetics.
+
+**Model Kind**: `MichaelisMentenElimination`
+
+**Parameters**: `MichaelisMentenEliminationParams`
+
+| Parameter | Symbol | Units | Description | Constraints |
+|-----------|--------|-------|-------------|-------------|
+| `Vmax` | Vmax | mg/h | Maximum elimination rate | Vmax > 0 |
+| `Km` | Km | mg/L | Concentration at half Vmax | Km > 0 |
+| `V` | V | L | Volume of distribution | V > 0 |
+
+**Differential Equation**:
+
+$$\frac{dA}{dt} = -\frac{V_{max} \cdot A}{K_m \cdot V + A}$$
+
+Or in terms of concentration:
+
+$$\frac{dC}{dt} = -\frac{V_{max} \cdot C}{K_m + C}$$
+
+**Kinetic Behavior**:
+
+| Condition | Kinetics | Effective CL |
+|-----------|----------|--------------|
+| C << Km | First-order (linear) | CL ≈ Vmax/Km |
+| C >> Km | Zero-order (saturable) | Rate ≈ Vmax |
+| C ≈ Km | Mixed-order | Nonlinear |
+
+**Characteristics**:
+- Dose-dependent half-life (increases with dose)
+- Disproportionate increase in AUC with dose
+- Time to steady state depends on dose
+
+**Clinical Examples**: Phenytoin, ethanol, high-dose aspirin, some biologics
+
+**Example (Python)**:
+
+```python
+result = openpkpd.simulate_pk_michaelis_menten(
+    vmax=500.0,    # mg/h
+    km=10.0,       # mg/L
+    v=50.0,        # L
+    doses=[{"time": 0.0, "amount": 1000.0}],
+    t0=0.0,
+    t1=48.0
+)
 ```
 
 ---
@@ -161,42 +441,81 @@ A direct effect model where drug effect is an instantaneous function of concentr
 
 | Parameter | Symbol | Units | Description | Constraints |
 |-----------|--------|-------|-------------|-------------|
-| `E0` | E0 | effect units | Baseline effect | - |
+| `E0` | E0 | effect units | Baseline effect | Any real |
 | `Emax` | Emax | effect units | Maximum effect | Emax > 0 |
-| `EC50` | EC50 | concentration | Concentration at 50% Emax | EC50 > 0 |
+| `EC50` | EC50 | mg/L | Concentration at 50% Emax | EC50 > 0 |
 
 **Effect Equation**:
 
 $$E(C) = E_0 + \frac{E_{max} \cdot C}{EC_{50} + C}$$
 
-**Example - Sequential PKPD**:
+**Properties**:
+- At C = 0: E = E0
+- At C = EC50: E = E0 + Emax/2
+- As C → ∞: E → E0 + Emax
 
-```julia
-using OpenPKPDCore
+**Use Cases**: Rapid equilibrium effects, receptor binding without delays
 
-# PK model
-pk_params = OneCompIVBolusParams(5.0, 50.0)
-pk_spec = ModelSpec(OneCompIVBolus(), "pk", pk_params, [DoseEvent(0.0, 100.0)])
+**Example (Python)**:
 
-# PD model: E0=10, Emax=90, EC50=1.0 mg/L
-pd_params = DirectEmaxParams(10.0, 90.0, 1.0)
-pd_spec = PDSpec(DirectEmax(), "pd", pd_params, :conc, :effect)
+```python
+result = openpkpd.simulate_pkpd_direct_emax(
+    # PK parameters
+    cl=5.0, v=50.0,
+    # PD parameters
+    e0=0.0, emax=100.0, ec50=2.0,
+    doses=[{"time": 0.0, "amount": 100.0}],
+    t0=0.0, t1=24.0
+)
+```
 
-grid = SimGrid(0.0, 24.0, collect(0.0:0.5:24.0))
-solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10_000_000)
+---
 
-# Run sequential PKPD (PK solved first, then PD evaluated)
-result = simulate_pkpd(pk_spec, pd_spec, grid, solver)
+### Sigmoid Emax (Hill Equation)
 
-println("Concentrations: ", result.observations[:conc])
-println("Effects: ", result.observations[:effect])
+Extension of Emax model with Hill coefficient for steepness control.
+
+**Model Kind**: `SigmoidEmax`
+
+**Parameters**: `SigmoidEmaxParams`
+
+| Parameter | Symbol | Units | Description | Constraints |
+|-----------|--------|-------|-------------|-------------|
+| `E0` | E0 | effect units | Baseline effect | Any real |
+| `Emax` | Emax | effect units | Maximum effect | Any (negative for inhibition) |
+| `EC50` | EC50 | mg/L | Concentration at 50% Emax | EC50 > 0 |
+| `gamma` | γ | - | Hill coefficient (steepness) | γ > 0 |
+
+**Effect Equation**:
+
+$$E(C) = E_0 + \frac{E_{max} \cdot C^{\gamma}}{EC_{50}^{\gamma} + C^{\gamma}}$$
+
+**Hill Coefficient Interpretation**:
+
+| γ Value | Response Shape | Example |
+|---------|----------------|---------|
+| γ = 1 | Hyperbolic (standard Emax) | Many drugs |
+| γ < 1 | Gradual, shallow curve | Some enzymes |
+| γ > 1 | Steep, switch-like | Neuromuscular blockers |
+| γ = 2-4 | Moderate steepness | Ion channels |
+| γ > 4 | Near all-or-none | Cooperative binding |
+
+**Example (Python)**:
+
+```python
+result = openpkpd.simulate_pkpd_sigmoid_emax(
+    cl=5.0, v=50.0,
+    e0=10.0, emax=90.0, ec50=1.5, gamma=2.5,
+    doses=[{"time": 0.0, "amount": 100.0}],
+    t0=0.0, t1=24.0
+)
 ```
 
 ---
 
 ### Indirect Response Turnover Model
 
-An indirect response model where drug inhibits the production or elimination of a response variable.
+Models drug effects on turnover of endogenous substances.
 
 **Model Kind**: `IndirectResponseTurnover`
 
@@ -204,49 +523,93 @@ An indirect response model where drug inhibits the production or elimination of 
 
 | Parameter | Symbol | Units | Description | Constraints |
 |-----------|--------|-------|-------------|-------------|
-| `Kin` | Kin | response/time | Zero-order input rate | Kin > 0 |
-| `Kout` | Kout | 1/time | First-order output rate | Kout > 0 |
-| `R0` | R0 | response units | Baseline response | R0 > 0 |
+| `Kin` | Kin | units/h | Zero-order input rate | Kin > 0 |
+| `Kout` | Kout | 1/h | First-order output rate | Kout > 0 |
+| `R0` | R0 | units | Baseline response | R0 > 0 |
 | `Imax` | Imax | - | Maximum inhibition | 0 ≤ Imax ≤ 1 |
-| `IC50` | IC50 | concentration | Concentration at 50% Imax | IC50 > 0 |
+| `IC50` | IC50 | mg/L | Concentration at 50% Imax | IC50 > 0 |
 
-**State Variable**:
-
-| State | Symbol | Description |
-|-------|--------|-------------|
-| `R` | R | Response |
-
-**Differential Equation**:
-
-$$\frac{dR}{dt} = K_{in} - K_{out} \cdot (1 - I(C)) \cdot R$$
+**Note**: At baseline, R0 = Kin/Kout
 
 **Inhibition Function**:
 
 $$I(C) = \frac{I_{max} \cdot C}{IC_{50} + C}$$
 
-**Note**: At steady state without drug: $R_0 = K_{in} / K_{out}$
+**Differential Equation** (Type IV - inhibition of Kout):
 
-**Example - Coupled PKPD**:
+$$\frac{dR}{dt} = K_{in} - K_{out} \cdot (1 - I(C)) \cdot R$$
 
-```julia
-using OpenPKPDCore
+**Indirect Response Types**:
 
-# PK model
-pk_params = OneCompIVBolusParams(5.0, 50.0)
-pk_spec = ModelSpec(OneCompIVBolus(), "pk", pk_params, [DoseEvent(0.0, 100.0)])
+| Type | Mechanism | Drug Effect |
+|------|-----------|-------------|
+| I | Inhibit Kin | Decreases R (e.g., warfarin on clotting factors) |
+| II | Inhibit Kout | Increases R (e.g., corticosteroids on cortisol) |
+| III | Stimulate Kin | Increases R (e.g., EPO on RBCs) |
+| IV | Stimulate Kout | Decreases R |
 
-# PD model: Kin=10, Kout=0.5, R0=20, Imax=0.8, IC50=1.0
-pd_params = IndirectResponseTurnoverParams(10.0, 0.5, 20.0, 0.8, 1.0)
-pd_spec = PDSpec(IndirectResponseTurnover(), "indirect_pd", pd_params, :conc, :response)
+**Characteristics**:
+- Delayed response relative to concentration
+- Counter-clockwise hysteresis in effect-concentration plots
+- Time to maximum effect often occurs after Cmax
 
-grid = SimGrid(0.0, 72.0, collect(0.0:1.0:72.0))
-solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10_000_000)
+**Example (Python)**:
 
-# Run coupled PKPD (simultaneous PK-PD ODE system)
-result = simulate_pkpd_coupled(pk_spec, pd_spec, grid, solver)
+```python
+result = openpkpd.simulate_pkpd_indirect_response(
+    cl=5.0, v=50.0,
+    kin=10.0, kout=0.5, r0=20.0, imax=0.8, ic50=1.0,
+    doses=[{"time": 0.0, "amount": 100.0}],
+    t0=0.0, t1=72.0
+)
+```
 
-println("Concentrations: ", result.observations[:conc])
-println("Response: ", result.observations[:response])
+---
+
+### Biophase Equilibration (Effect Compartment)
+
+Models temporal delay between plasma and effect site concentrations.
+
+**Model Kind**: `BiophaseEquilibration`
+
+**Parameters**: `BiophaseEquilibrationParams`
+
+| Parameter | Symbol | Units | Description | Constraints |
+|-----------|--------|-------|-------------|-------------|
+| `ke0` | ke0 | 1/h | Effect site equilibration rate | ke0 > 0 |
+| `E0` | E0 | effect units | Baseline effect | Any real |
+| `Emax` | Emax | effect units | Maximum effect | Emax > 0 |
+| `EC50` | EC50 | mg/L | Effect site conc at 50% Emax | EC50 > 0 |
+
+**Effect Compartment ODE**:
+
+$$\frac{dC_e}{dt} = k_{e0} \cdot (C_p - C_e)$$
+
+Where $C_p$ = plasma concentration, $C_e$ = effect site concentration
+
+**Effect Equation** (based on Ce):
+
+$$E(C_e) = E_0 + \frac{E_{max} \cdot C_e}{EC_{50} + C_e}$$
+
+**Equilibration Kinetics**:
+- Half-life of equilibration: $t_{1/2,ke0} = \ln(2) / k_{e0}$
+- Time to 90% equilibration: $t_{90} \approx 2.3 / k_{e0}$
+
+**Use Cases**:
+- CNS-active drugs (anesthetics, sedatives)
+- Drugs with hysteresis in effect-concentration plots
+- Neuromuscular blocking agents
+
+**Example (Python)**:
+
+```python
+result = openpkpd.simulate_pkpd_biophase_equilibration(
+    cl=5.0, v=50.0,
+    ke0=0.5,  # Equilibration half-life ~1.4 hours
+    e0=0.0, emax=100.0, ec50=2.0,
+    doses=[{"time": 0.0, "amount": 100.0}],
+    t0=0.0, t1=24.0
+)
 ```
 
 ---
@@ -266,27 +629,21 @@ DoseEvent(time::Float64, amount::Float64)
 | `time` | Time of dose administration |
 | `amount` | Dose amount (mass units) |
 
-**Dose Handling**:
+**Python format**:
+
+```python
+doses = [
+    {"time": 0.0, "amount": 100.0},
+    {"time": 24.0, "amount": 100.0},
+]
+```
+
+**Dose Handling Rules**:
 
 - Doses at `t0` are added to the initial condition
 - Doses in `(t0, t1]` are handled via callbacks
 - Multiple doses at the same time are summed
 - Doses outside `[t0, t1]` are ignored
-
-**Example**:
-
-```julia
-# QD dosing for 7 days
-doses = [DoseEvent(Float64(d * 24), 100.0) for d in 0:6]
-
-# BID dosing
-doses = [
-    DoseEvent(0.0, 50.0),
-    DoseEvent(12.0, 50.0),
-    DoseEvent(24.0, 50.0),
-    DoseEvent(36.0, 50.0)
-]
-```
 
 ---
 
@@ -306,17 +663,17 @@ SimGrid(t0::Float64, t1::Float64, saveat::Vector{Float64})
 | `t1` | End time | t1 > t0 |
 | `saveat` | Output time points | Sorted, within [t0, t1] |
 
-**Example**:
+**Examples**:
 
 ```julia
-# Hourly output from 0 to 24 hours
+# Hourly output
 grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
 
-# Fine resolution around Cmax
+# Fine resolution
 grid = SimGrid(0.0, 24.0, collect(0.0:0.1:24.0))
 
-# Sparse sampling
-grid = SimGrid(0.0, 168.0, [0.0, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0, 48.0, 72.0, 168.0])
+# Sparse PK sampling
+grid = SimGrid(0.0, 168.0, [0.0, 0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0, 48.0, 72.0, 168.0])
 ```
 
 ---
@@ -338,77 +695,17 @@ SolverSpec(alg::Symbol, reltol::Float64, abstol::Float64, maxiters::Int)
 | `abstol` | Absolute tolerance | 1e-9 to 1e-12 |
 | `maxiters` | Maximum iterations | 10000 to 10000000 |
 
-**Golden Standard Settings**:
+**Golden Standard Settings** (for reproducibility):
 
 ```julia
-# High precision for reproducibility
 solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10_000_000)
 ```
 
 ---
 
-## Simulation Results
+## See Also
 
-The `SimResult` struct contains simulation output.
-
-**Structure**:
-
-```julia
-struct SimResult
-    t::Vector{Float64}
-    states::Dict{Symbol, Vector{Float64}}
-    observations::Dict{Symbol, Vector{Float64}}
-    metadata::Dict{String, Any}
-end
-```
-
-| Field | Description |
-|-------|-------------|
-| `t` | Time points (matches `saveat`) |
-| `states` | State variable trajectories |
-| `observations` | Observable outputs (`:conc`, `:effect`, etc.) |
-| `metadata` | Simulation metadata |
-
-**Metadata Contents**:
-
-- `model`: Model name
-- `solver_alg`: Algorithm used
-- `reltol`, `abstol`: Tolerances
-- `dose_schedule`: Applied doses
-- `engine_version`: OpenPKPD version
-- `event_semantics_version`: Event handling version
-- `solver_semantics_version`: Solver semantics version
-
----
-
-## Exposure Metrics
-
-OpenPKPD provides functions for common pharmacokinetic metrics.
-
-### Maximum Concentration (Cmax)
-
-```julia
-cmax_value = cmax(t, c)
-```
-
-Returns the maximum value in the concentration vector.
-
-### Area Under the Curve (AUC)
-
-```julia
-auc_value = auc_trapezoid(t, c)
-```
-
-Computes AUC using the trapezoidal rule. Requires sorted time points.
-
-**Example**:
-
-```julia
-result = simulate(spec, grid, solver)
-
-t = result.t
-c = result.observations[:conc]
-
-println("Cmax = ", cmax(t, c))
-println("AUC = ", auc_trapezoid(t, c))
-```
+- [Population Simulation](population.md) - IIV, IOV, and covariate modeling
+- [NCA Reference](nca.md) - Non-compartmental analysis
+- [Trial Simulation](trial.md) - Clinical trial simulation
+- [Python Bindings](python.md) - Complete Python API reference

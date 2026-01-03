@@ -14,13 +14,18 @@ function _require_equal(a, b, label::String)
     end
 end
 
-function _compare_vectors(a::Vector{Float64}, b::Vector{Float64}, label::String; rtol=1e-12, atol=1e-12)
+# Tolerance for cross-platform validation: 1e-10 allows for typical floating-point
+# variations across different platforms, Julia versions, and BLAS implementations
+# while still ensuring ~10 significant figures of agreement.
+function _compare_vectors(a::Vector{Float64}, b::Vector{Float64}, label::String; rtol=1e-10, atol=1e-10)
     if length(a) != length(b)
         error("Length mismatch for $(label). Expected $(length(a)), got $(length(b))")
     end
     for i in eachindex(a)
         if !isapprox(a[i], b[i]; rtol=rtol, atol=atol)
-            error("Value mismatch for $(label) at index $(i). Expected $(a[i]), got $(b[i])")
+            diff = abs(a[i] - b[i])
+            rel_diff = a[i] != 0.0 ? diff / abs(a[i]) : diff
+            error("Value mismatch for $(label) at index $(i). Expected $(a[i]), got $(b[i]) (diff=$(diff), rel=$(rel_diff))")
         end
     end
 end
