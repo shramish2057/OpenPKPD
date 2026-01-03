@@ -23,7 +23,8 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          cd python && pip install -e .[dev]
+          python -m pip install pytest pytest-cov
+          cd python && pip install -e .
 
       - name: Run trial module tests
         run: |
@@ -130,7 +131,8 @@ jobs:
         run: |
           julia -e 'using Pkg; Pkg.activate("core/OpenPKPDCore"); Pkg.instantiate()'
           python -m pip install --upgrade pip
-          cd python && pip install -e .[dev]
+          python -m pip install pytest pytest-cov
+          cd python && pip install -e .
 
       - name: Run NCA tests
         run: |
