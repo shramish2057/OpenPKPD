@@ -6,7 +6,7 @@ pharmacodynamic simulations.
 
 Features:
 - Single PK simulations:
-  - One-compartment: IV bolus, oral first-order
+  - One-compartment: IV bolus, IV infusion, oral first-order
   - Two-compartment: IV bolus, oral first-order
   - Three-compartment: IV bolus
   - Advanced absorption: Transit compartment model
@@ -17,6 +17,12 @@ Features:
   - Biophase equilibration (effect compartment)
   - Indirect response turnover model
 - Population simulations with IIV, IOV, and covariates
+- Parameter estimation (FOCE-I, SAEM, Laplacian)
+- Visual Predictive Check (VPC, pcVPC)
+- Non-Compartmental Analysis (NCA)
+- CDISC/SDTM data import
+- NONMEM/Monolix model import
+- Residual error models
 - Sensitivity analysis
 - Artifact replay for reproducibility
 - PK/PD metrics (Cmax, AUC, Tmax, Emin, time below threshold)
@@ -33,27 +39,22 @@ Quick Start:
     ...     saveat=[0.0, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0]
     ... )
 
-    >>> # Run a two-compartment simulation
-    >>> result = openpkpd.simulate_pk_twocomp_iv_bolus(
-    ...     cl=5.0, v1=50.0, q=2.0, v2=100.0,
-    ...     doses=[{"time": 0.0, "amount": 100.0}],
+    >>> # Run IV infusion
+    >>> result = openpkpd.simulate_pk_iv_bolus(
+    ...     cl=1.0, v=10.0,
+    ...     doses=[{"time": 0.0, "amount": 100.0, "duration": 1.0}],  # 1-hour infusion
     ...     t0=0.0, t1=24.0,
-    ...     saveat=[0.0, 1.0, 4.0, 8.0, 12.0, 24.0]
+    ...     saveat=[0.0, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0]
     ... )
 
-    >>> # Run a PK-PD simulation with sigmoid Emax
-    >>> result = openpkpd.simulate_pkpd_sigmoid_emax(
-    ...     cl=5.0, v=50.0,
-    ...     doses=[{"time": 0.0, "amount": 100.0}],
-    ...     e0=10.0, emax=40.0, ec50=0.8, gamma=2.0,
-    ...     t0=0.0, t1=24.0,
-    ...     saveat=[0.0, 1.0, 4.0, 8.0, 12.0, 24.0]
-    ... )
+    >>> # Run parameter estimation
+    >>> from openpkpd.estimation import estimate, EstimationConfig
+    >>> config = EstimationConfig(method="foce", theta_init=[1.0, 10.0])
+    >>> result = estimate(observed_data, "OneCompIVBolus", config, grid)
 
-    >>> # Compute metrics
-    >>> print(f"Cmax: {openpkpd.cmax(result)}")
-    >>> print(f"AUC: {openpkpd.auc_trapezoid(result)}")
-    >>> print(f"Half-life: {openpkpd.half_life(1.0, 10.0)}")
+    >>> # Run VPC
+    >>> from openpkpd.vpc import compute_vpc, VPCConfig
+    >>> vpc_result = compute_vpc(observed, pop_spec, grid)
 
 For more information, see the docstrings for individual functions.
 """
@@ -145,6 +146,48 @@ from .nca import (
     geometric_mean_ratio,
 )
 
+# Parameter Estimation (NLME)
+from .estimation import (
+    estimate,
+    EstimationConfig,
+    EstimationResult,
+    IndividualEstimate,
+)
+
+# Visual Predictive Check
+from .vpc import (
+    compute_vpc,
+    compute_pcvpc,
+    VPCConfig,
+    VPCResult,
+    VPCBin,
+    VPCPercentile,
+)
+
+# CDISC Data Import
+from .data import (
+    read_cdisc_pc,
+    read_cdisc_ex,
+    read_cdisc_dm,
+    read_cdisc_dataset,
+    cdisc_to_observed_data,
+    validate_cdisc_dataset,
+    SubjectData,
+    ObservedData,
+)
+
+# Model Import (NONMEM/Monolix)
+from .import_ import (
+    import_nonmem,
+    import_monolix,
+    import_model,
+    parse_nonmem_control,
+    parse_monolix_project,
+    ImportedModel,
+    NONMEMControlFile,
+    MonolixProject,
+)
+
 
 __all__ = [
     # Core
@@ -215,4 +258,38 @@ __all__ = [
     "tost_analysis",
     "be_conclusion",
     "geometric_mean_ratio",
+
+    # Estimation (NLME)
+    "estimate",
+    "EstimationConfig",
+    "EstimationResult",
+    "IndividualEstimate",
+
+    # VPC
+    "compute_vpc",
+    "compute_pcvpc",
+    "VPCConfig",
+    "VPCResult",
+    "VPCBin",
+    "VPCPercentile",
+
+    # CDISC Data
+    "read_cdisc_pc",
+    "read_cdisc_ex",
+    "read_cdisc_dm",
+    "read_cdisc_dataset",
+    "cdisc_to_observed_data",
+    "validate_cdisc_dataset",
+    "SubjectData",
+    "ObservedData",
+
+    # Model Import
+    "import_nonmem",
+    "import_monolix",
+    "import_model",
+    "parse_nonmem_control",
+    "parse_monolix_project",
+    "ImportedModel",
+    "NONMEMControlFile",
+    "MonolixProject",
 ]

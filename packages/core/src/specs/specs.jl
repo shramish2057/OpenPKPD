@@ -27,10 +27,69 @@ abstract type ModelKind end
 struct OneCompIVBolus <: ModelKind end
 struct OneCompOralFirstOrder <: ModelKind end
 
+"""
+Dose event specification supporting both bolus and infusion administration.
+
+For IV bolus: duration = 0.0 (default), dose is instantaneously added to compartment
+For IV infusion: duration > 0.0, dose is delivered at constant rate over duration
+
+Fields:
+- time: Start time of dose administration
+- amount: Total drug amount to be administered
+- duration: Infusion duration in time units (0.0 = instantaneous bolus)
+
+The infusion rate is computed as: rate = amount / duration
+
+Examples:
+- DoseEvent(0.0, 100.0) - 100 mg bolus at t=0
+- DoseEvent(0.0, 100.0, 0.0) - same as above, explicit bolus
+- DoseEvent(0.0, 100.0, 1.0) - 100 mg infused over 1 hour (rate = 100 mg/h)
+- DoseEvent(0.0, 100.0, 0.5) - 100 mg infused over 30 min (rate = 200 mg/h)
+"""
 struct DoseEvent
     time::Float64
     amount::Float64
+    duration::Float64
+
+    function DoseEvent(time::Float64, amount::Float64, duration::Float64=0.0)
+        duration >= 0.0 || error("DoseEvent duration must be >= 0, got $(duration)")
+        amount >= 0.0 || error("DoseEvent amount must be >= 0, got $(amount)")
+        new(time, amount, duration)
+    end
 end
+
+# Note: Two-argument constructor DoseEvent(time, amount) works via the default
+# duration=0.0 in the inner constructor above.
+
+"""
+Check if dose event is a bolus (instantaneous) administration.
+"""
+is_bolus(dose::DoseEvent) = dose.duration == 0.0
+
+"""
+Check if dose event is an infusion (zero-order input).
+"""
+is_infusion(dose::DoseEvent) = dose.duration > 0.0
+
+"""
+Compute the infusion rate for a dose event.
+Returns the rate in amount/time units. For bolus doses, returns Inf.
+"""
+function infusion_rate(dose::DoseEvent)
+    if is_bolus(dose)
+        return Inf
+    else
+        return dose.amount / dose.duration
+    end
+end
+
+"""
+Get the end time of a dose event (when infusion stops).
+For bolus doses, this equals the start time.
+"""
+dose_end_time(dose::DoseEvent) = dose.time + dose.duration
+
+export is_bolus, is_infusion, infusion_rate, dose_end_time
 
 struct OneCompIVBolusParams
     CL::Float64

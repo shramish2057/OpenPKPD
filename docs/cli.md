@@ -1,17 +1,21 @@
 # CLI Reference
 
-OpenPKPD provides a command-line interface for common operations.
+OpenPKPD provides a comprehensive command-line interface for PK/PD simulations, estimation, VPC, NCA, trial simulation, and model import.
 
 ## Installation
 
-The CLI is located in `bin/openpkpd` and requires Julia with the OpenPKPDCore and OpenPKPDCLI packages.
+The CLI is located in `packages/cli/bin/openpkpd` and requires Julia with the OpenPKPDCore and OpenPKPDCLI packages.
 
 ```bash
+# Install dependencies
+julia --project=packages/core -e 'using Pkg; Pkg.instantiate()'
+julia --project=packages/cli -e 'using Pkg; Pkg.instantiate()'
+
 # Make executable
-chmod +x bin/openpkpd
+chmod +x packages/cli/bin/openpkpd
 
 # Run CLI
-./bin/openpkpd <command> [options]
+./packages/cli/bin/openpkpd <command> [options]
 ```
 
 ---
@@ -23,7 +27,7 @@ chmod +x bin/openpkpd
 Display version information for all OpenPKPD components.
 
 ```bash
-./bin/openpkpd version
+./packages/cli/bin/openpkpd version
 ```
 
 **Output**:
@@ -37,12 +41,153 @@ Artifact schema: 1.0.0
 
 ---
 
+### simulate
+
+Run a PK/PD simulation from a JSON specification.
+
+```bash
+./packages/cli/bin/openpkpd simulate --spec <path> [--out <output_path>]
+```
+
+**Options**:
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--spec` | Yes | Path to simulation specification JSON |
+| `--out` | No | Output path for result artifact |
+
+**Example**:
+
+```bash
+./packages/cli/bin/openpkpd simulate --spec simulation.json --out result.json
+```
+
+---
+
+### population
+
+Run a population simulation with IIV/IOV.
+
+```bash
+./packages/cli/bin/openpkpd population --spec <path> [--out <output_path>]
+```
+
+---
+
+### estimate
+
+Run NLME parameter estimation (FOCE-I, SAEM, or Laplacian).
+
+```bash
+./packages/cli/bin/openpkpd estimate --spec <path> [--out <output_path>]
+```
+
+**Specification includes**: observed data, model, estimation method, initial values, bounds.
+
+See [Parameter Estimation](estimation.md) for specification format.
+
+---
+
+### nca
+
+Run non-compartmental analysis.
+
+```bash
+./packages/cli/bin/openpkpd nca --spec <path> [--out <output_path>]
+```
+
+See [NCA](nca.md) for specification format.
+
+---
+
+### vpc
+
+Compute Visual Predictive Check.
+
+```bash
+./packages/cli/bin/openpkpd vpc --spec <path> [--out <output_path>]
+```
+
+See [VPC](vpc.md) for specification format.
+
+---
+
+### trial
+
+Run clinical trial simulation.
+
+```bash
+./packages/cli/bin/openpkpd trial --spec <path> [--out <output_path>]
+```
+
+Supports parallel, crossover, dose-escalation, and bioequivalence designs.
+
+See [Trial Simulation](trial.md) for specification format.
+
+---
+
+### import
+
+Import models from NONMEM or Monolix.
+
+```bash
+./packages/cli/bin/openpkpd import --input <path> --format <format> [--out <output_path>]
+```
+
+**Options**:
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--input` | Yes | Path to model file (.ctl or .mlxtran) |
+| `--format` | Yes | Format: `nonmem` or `monolix` |
+| `--out` | No | Output path for converted model |
+
+**Examples**:
+
+```bash
+# Import NONMEM control file
+./packages/cli/bin/openpkpd import --input run001.ctl --format nonmem --out model.json
+
+# Import Monolix project
+./packages/cli/bin/openpkpd import --input project.mlxtran --format monolix --out model.json
+```
+
+See [Model Import](import.md) for details.
+
+---
+
+### sensitivity
+
+Run parameter sensitivity analysis.
+
+```bash
+./packages/cli/bin/openpkpd sensitivity --spec <path> [--out <output_path>]
+```
+
+---
+
+### metrics
+
+Compute PK/PD metrics from simulation results.
+
+```bash
+./packages/cli/bin/openpkpd metrics --artifact <path> --metrics <list>
+```
+
+**Examples**:
+
+```bash
+./packages/cli/bin/openpkpd metrics --artifact result.json --metrics cmax,tmax,auc
+```
+
+---
+
 ### replay
 
 Replay an execution artifact to verify reproducibility.
 
 ```bash
-./bin/openpkpd replay --artifact <path> [--out <output_path>]
+./packages/cli/bin/openpkpd replay --artifact <path> [--out <output_path>]
 ```
 
 **Options**:
@@ -58,18 +203,19 @@ Replay an execution artifact to verify reproducibility.
 - Population execution (`artifact_type: "population"`)
 - Single sensitivity (`artifact_type: "sensitivity_single"`)
 - Population sensitivity (`artifact_type: "sensitivity_population"`)
+- Estimation results (`artifact_type: "estimation"`)
 
 **Examples**:
 
 ```bash
 # Replay and verify
-./bin/openpkpd replay --artifact validation/golden/pk_iv_bolus.json
+./packages/cli/bin/openpkpd replay --artifact validation/golden/pk_iv_bolus.json
 
 # Replay and save output
-./bin/openpkpd replay --artifact my_simulation.json --out replayed.json
+./packages/cli/bin/openpkpd replay --artifact my_simulation.json --out replayed.json
 
 # Replay population artifact
-./bin/openpkpd replay --artifact validation/golden/population_iv_bolus.json
+./packages/cli/bin/openpkpd replay --artifact validation/golden/population_iv_bolus.json
 ```
 
 ---
@@ -79,7 +225,7 @@ Replay an execution artifact to verify reproducibility.
 Run the full golden artifact validation suite.
 
 ```bash
-./bin/openpkpd validate-golden
+./packages/cli/bin/openpkpd validate-golden
 ```
 
 **What It Does**:
@@ -99,7 +245,7 @@ Validating golden artifacts...
   pkpd_direct_emax.json: PASS
   sensitivity_single.json: PASS
   ...
-All 10 golden artifacts validated successfully.
+All golden artifacts validated successfully.
 ```
 
 **Exit Codes**:
@@ -108,6 +254,18 @@ All 10 golden artifacts validated successfully.
 |------|---------|
 | 0 | All validations passed |
 | 1 | One or more validations failed |
+
+---
+
+### help
+
+Display help for any command.
+
+```bash
+./packages/cli/bin/openpkpd help
+./packages/cli/bin/openpkpd help simulate
+./packages/cli/bin/openpkpd help estimate
+```
 
 ---
 

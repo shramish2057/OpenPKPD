@@ -4,12 +4,20 @@
 
 ## Key Features
 
-- **Validated PK/PD Models**: One-compartment IV bolus, oral first-order absorption, direct Emax, and indirect response models
+- **Comprehensive PK/PD Models**: One/Two/Three-compartment IV & oral, transit absorption, Michaelis-Menten, direct Emax, sigmoid Emax, biophase equilibration, indirect response
+- **IV Infusion Support**: Zero-order infusion with duration specification, overlapping infusions
 - **Population Simulation**: Inter-individual variability (IIV), inter-occasion variability (IOV), and covariate effects
-- **Time-Varying Covariates**: Step and linear interpolation for dynamic patient characteristics
+- **Parameter Estimation (NLME)**: FOCE-I, SAEM, and Laplacian estimation methods with standard error computation
+- **Non-Compartmental Analysis (NCA)**: FDA/EMA-compliant exposure metrics with bioequivalence analysis
+- **Visual Predictive Checks (VPC)**: Standard VPC, prediction-corrected VPC (pcVPC), stratification, bootstrap CIs
+- **Clinical Trial Simulation**: Parallel, crossover, dose-escalation, bioequivalence designs with power analysis
+- **Model Import**: NONMEM (.ctl) and Monolix (.mlxtran) model file parsing
+- **Data Import**: CDISC/SDTM format support (PC, EX, DM domains) in CSV and XPT formats
+- **Residual Error Models**: Additive, proportional, combined, and exponential error
 - **Sensitivity Analysis**: Single-subject and population-level parameter sensitivity
 - **Reproducible Artifacts**: JSON-serialized execution artifacts with semantic versioning
 - **Multi-Language Support**: Julia core with Python bindings and CLI interface
+- **Professional Visualization**: Matplotlib and Plotly backends with estimation diagnostics
 
 ## Quick Start
 
@@ -21,13 +29,13 @@ git clone https://github.com/openpkpd/openpkpd.git
 cd openpkpd
 
 # Install Julia dependencies
-julia --project=core/OpenPKPDCore -e 'using Pkg; Pkg.instantiate()'
+julia --project=packages/core -e 'using Pkg; Pkg.instantiate()'
 
 # (Optional) Install Python bindings
-cd python
+cd packages/python
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -e ".[all]"
 ```
 
 ### Your First Simulation (Julia)
@@ -80,13 +88,31 @@ print("Concentrations:", result["observations"]["conc"])
 
 ```bash
 # Check version
-./bin/openpkpd version
+./packages/cli/bin/openpkpd version
+
+# Run simulation from spec
+./packages/cli/bin/openpkpd simulate --spec simulation.json --out result.json
+
+# Run NCA analysis
+./packages/cli/bin/openpkpd nca --spec nca_spec.json --out nca_result.json
+
+# Run parameter estimation
+./packages/cli/bin/openpkpd estimate --spec estimate_spec.json --out fit.json
+
+# Compute VPC
+./packages/cli/bin/openpkpd vpc --spec vpc_spec.json --out vpc_result.json
+
+# Run clinical trial simulation
+./packages/cli/bin/openpkpd trial --spec trial_spec.json --out trial_result.json
+
+# Import NONMEM model
+./packages/cli/bin/openpkpd import --input run001.ctl --format nonmem --out model.json
 
 # Replay an artifact
-./bin/openpkpd replay --artifact validation/golden/pk_iv_bolus.json
+./packages/cli/bin/openpkpd replay --artifact validation/golden/pk_iv_bolus.json
 
 # Validate golden artifacts
-./bin/openpkpd validate-golden
+./packages/cli/bin/openpkpd validate-golden
 ```
 
 ## Core Concepts
@@ -175,10 +201,14 @@ Artifacts can be replayed to verify reproducibility across versions.
 | Section | Description |
 |---------|-------------|
 | [Models](models.md) | Complete PK and PD model reference |
-| [NCA](nca.md) | Non-compartmental analysis (FDA/EMA compliant) |
-| [Trial Simulation](trial.md) | Clinical trial design and simulation |
-| [Visualization](visualization.md) | Matplotlib and Plotly plotting |
+| [Parameter Estimation](estimation.md) | NLME estimation (FOCE-I, SAEM, Laplacian) |
 | [Population Simulation](population.md) | IIV, IOV, and covariate modeling |
+| [NCA](nca.md) | Non-compartmental analysis (FDA/EMA compliant) |
+| [VPC](vpc.md) | Visual Predictive Checks |
+| [Trial Simulation](trial.md) | Clinical trial design and simulation |
+| [Data Import](data.md) | CDISC/SDTM data format support |
+| [Model Import](import.md) | NONMEM and Monolix model parsing |
+| [Visualization](visualization.md) | Matplotlib and Plotly plotting |
 | [Sensitivity Analysis](sensitivity.md) | Parameter sensitivity methods |
 | [Architecture](architecture.md) | System design and boundaries |
 | [Semantics](semantics.md) | Versioning and numerical semantics |

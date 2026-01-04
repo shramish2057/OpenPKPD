@@ -68,6 +68,10 @@ from .population import (
     plot_parameter_distributions,
     plot_forest,
     plot_boxplot,
+    plot_goodness_of_fit,
+    plot_estimation_summary,
+    plot_sensitivity,
+    plot_sensitivity_tornado,
 )
 
 from .trial import (
@@ -108,6 +112,12 @@ __all__ = [
     "plot_parameter_distributions",
     "plot_forest",
     "plot_boxplot",
+    # Estimation diagnostics
+    "plot_goodness_of_fit",
+    "plot_estimation_summary",
+    # Sensitivity plots
+    "plot_sensitivity",
+    "plot_sensitivity_tornado",
     # Trial plots
     "plot_power_curve",
     "plot_tornado",

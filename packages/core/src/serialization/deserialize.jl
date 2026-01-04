@@ -46,7 +46,9 @@ function _parse_doses(arr)::Vector{DoseEvent}
     for item in arr
         t = Float64(item["time"])
         a = Float64(item["amount"])
-        push!(doses, DoseEvent(t, a))
+        # Support duration field (backward compatible - defaults to 0.0 for bolus)
+        d = haskey(item, "duration") ? Float64(item["duration"]) : 0.0
+        push!(doses, DoseEvent(t, a, d))
     end
     return doses
 end

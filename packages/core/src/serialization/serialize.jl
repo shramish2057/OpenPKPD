@@ -3,7 +3,7 @@ using JSON
 export serialize_execution, write_execution_json
 
 function _serialize_doses(doses::Vector{DoseEvent})
-    return [Dict("time" => d.time, "amount" => d.amount) for d in doses]
+    return [Dict("time" => d.time, "amount" => d.amount, "duration" => d.duration) for d in doses]
 end
 
 function _serialize_model_spec(spec::ModelSpec)

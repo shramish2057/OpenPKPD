@@ -189,3 +189,42 @@ def _to_julia_float_vector(jl: Any, items: list) -> Any:
     for i, item in enumerate(items):
         vec[i] = float(item)
     return vec
+
+
+def _create_dose_event(jl: Any, dose_dict: Dict[str, Any]) -> Any:
+    """
+    Create a Julia DoseEvent from a Python dict.
+
+    Supports both bolus and infusion administration:
+    - Bolus: {"time": 0.0, "amount": 100.0}  (duration defaults to 0.0)
+    - Infusion: {"time": 0.0, "amount": 100.0, "duration": 1.0}  (100 mg over 1 hour)
+
+    Args:
+        jl: Julia module
+        dose_dict: Dict with 'time', 'amount', and optional 'duration'
+
+    Returns:
+        Julia DoseEvent object
+    """
+    DoseEvent = jl.OpenPKPDCore.DoseEvent
+    return DoseEvent(
+        float(dose_dict["time"]),
+        float(dose_dict["amount"]),
+        float(dose_dict.get("duration", 0.0))
+    )
+
+
+def _create_dose_events(jl: Any, doses: List[Dict[str, Any]]) -> Any:
+    """
+    Create a Julia Vector of DoseEvents from a list of Python dicts.
+
+    Args:
+        jl: Julia module
+        doses: List of dose dicts with 'time', 'amount', and optional 'duration'
+
+    Returns:
+        Julia Vector{DoseEvent}
+    """
+    DoseEvent = jl.OpenPKPDCore.DoseEvent
+    dose_objs = [_create_dose_event(jl, d) for d in doses]
+    return _to_julia_vector(jl, dose_objs, DoseEvent)

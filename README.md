@@ -29,11 +29,17 @@
 |----------|----------|
 | **PK Models** | One/Two/Three-compartment IV & oral, transit absorption, Michaelis-Menten |
 | **PD Models** | Direct Emax, sigmoid Emax, biophase equilibration, indirect response |
+| **IV Infusion** | Zero-order infusion with duration support, overlapping infusions |
 | **Population** | IIV, IOV, static & time-varying covariates |
+| **Parameter Estimation** | NLME with FOCE-I, SAEM, and Laplacian methods |
 | **NCA** | FDA/EMA-compliant non-compartmental analysis |
 | **Trial Simulation** | Parallel, crossover, dose-escalation, bioequivalence designs |
 | **Sensitivity** | Single-subject and population-level analysis |
-| **Visualization** | Matplotlib and Plotly backends |
+| **VPC** | Visual Predictive Checks with pcVPC and stratification |
+| **Model Import** | NONMEM (.ctl) and Monolix (.mlxtran) model parsing |
+| **Data Import** | CDISC/SDTM format support (PC, EX, DM domains) |
+| **Residual Error** | Additive, proportional, combined, exponential models |
+| **Visualization** | Matplotlib/Plotly backends with estimation diagnostics |
 | **Interfaces** | Julia API, Python bindings, CLI |
 | **Reproducibility** | Versioned artifacts with deterministic replay |
 
@@ -112,6 +118,21 @@ print(result["observations"]["conc"])
 # Check version
 ./packages/cli/bin/openpkpd version
 
+# Run simulation from JSON spec
+./packages/cli/bin/openpkpd simulate --spec simulation.json --out result.json
+
+# Run NCA analysis
+./packages/cli/bin/openpkpd nca --spec nca_spec.json --out nca_result.json
+
+# Run clinical trial simulation
+./packages/cli/bin/openpkpd trial --spec trial_spec.json --out trial_result.json
+
+# Compute VPC
+./packages/cli/bin/openpkpd vpc --spec vpc_spec.json --out vpc_result.json
+
+# Import NONMEM model
+./packages/cli/bin/openpkpd import --input model.ctl --format nonmem --out model.json
+
 # Replay an artifact
 ./packages/cli/bin/openpkpd replay --artifact validation/golden/pk_iv_bolus.json
 
@@ -124,21 +145,36 @@ print(result["observations"]["conc"])
 ```
 openpkpd/
 ├── packages/
-│   ├── core/             # Julia simulation engine
-│   │   ├── src/          # Source code
-│   │   └── test/         # Test suite
-│   ├── python/           # Python bindings
-│   │   ├── openpkpd/     # Package code
-│   │   └── tests/        # Python tests
-│   └── cli/              # Command-line interface
-│       ├── src/          # CLI source
-│       └── bin/          # Entry point
-├── validation/           # Golden artifacts
-│   ├── golden/           # Reference outputs
-│   └── scripts/          # Validation runners
-├── docs/                 # Documentation (MkDocs)
-│   └── examples/         # Executable examples
-└── scripts/              # Development tools
+│   ├── core/                 # Julia simulation engine (OpenPKPDCore)
+│   │   ├── src/
+│   │   │   ├── models/       # PK/PD model definitions
+│   │   │   ├── engine/       # ODE solving, population, infusion
+│   │   │   ├── specs/        # Type specifications (ModelSpec, etc.)
+│   │   │   ├── estimation/   # NLME: FOCE-I, SAEM, Laplacian
+│   │   │   ├── import/       # NONMEM/Monolix parsers
+│   │   │   ├── data/         # CDISC data handling
+│   │   │   ├── analysis/     # VPC, NCA, sensitivity
+│   │   │   └── serialization/# JSON artifact I/O
+│   │   └── test/             # Comprehensive test suite
+│   ├── python/               # Python bindings (openpkpd)
+│   │   └── openpkpd/
+│   │       ├── simulations/  # PK/PD simulation wrappers
+│   │       ├── nca/          # Non-compartmental analysis
+│   │       ├── trial/        # Clinical trial simulation
+│   │       ├── estimation/   # NLME Python interface
+│   │       ├── import_/      # Model import utilities
+│   │       ├── data/         # CDISC data utilities
+│   │       └── viz/          # Visualization (matplotlib/plotly)
+│   └── cli/                  # Command-line interface (OpenPKPDCLI)
+│       ├── src/              # CLI commands
+│       └── bin/              # Entry point script
+├── validation/               # Golden artifacts & validation
+│   ├── golden/               # Reference outputs (deterministic)
+│   └── scripts/              # Validation runners
+├── docs/                     # Documentation (MkDocs)
+│   ├── examples/             # Executable examples
+│   └── *.md                  # API references
+└── scripts/                  # Development tools
 ```
 
 ## Testing
@@ -172,6 +208,20 @@ Any change to numerical output requires a version bump.
 ## Documentation
 
 Full documentation: [openpkpd.github.io/openpkpd](https://openpkpd.github.io/openpkpd/)
+
+| Guide | Description |
+|-------|-------------|
+| [Models](docs/models.md) | PK/PD model reference |
+| [Estimation](docs/estimation.md) | NLME parameter estimation (FOCE-I, SAEM) |
+| [Population](docs/population.md) | IIV, IOV, covariates |
+| [NCA](docs/nca.md) | Non-compartmental analysis |
+| [VPC](docs/vpc.md) | Visual Predictive Checks |
+| [Trial Simulation](docs/trial.md) | Clinical trial design |
+| [Data Import](docs/data.md) | CDISC/SDTM format |
+| [Model Import](docs/import.md) | NONMEM/Monolix parsing |
+| [CLI Reference](docs/cli.md) | Command-line interface |
+| [Python API](docs/python.md) | Python bindings |
+| [Visualization](docs/visualization.md) | Plotting functions |
 
 Build locally:
 ```bash

@@ -1,5 +1,5 @@
 export pk_validate, pk_param_tuple, pk_state_symbols, pk_u0, pk_ode!, pk_conc
-export pk_dose_target_index
+export pk_dose_target_index, pk_ode_with_infusion!
 
 """
 Internal PK interface.
@@ -10,8 +10,12 @@ Each supported PK model kind must implement these methods:
 - pk_state_symbols(kind)
 - pk_u0(spec, grid)
 - pk_ode!(du, u, p, t, kind)
+- pk_ode_with_infusion!(du, u, p, t, kind, infusion_rate) - ODE with zero-order input
 - pk_conc(u, p, kind)
 - pk_dose_target_index(kind)
+
+The infusion_rate parameter represents zero-order drug input (amount/time)
+that is added to the dose target compartment during IV infusion.
 """
 
 # -------------------------
@@ -48,6 +52,12 @@ function pk_conc(u, p, ::OneCompIVBolus)
     return u[1] / p.V
 end
 
+function pk_ode_with_infusion!(du, u, p, t, kind::OneCompIVBolus, infusion_rate::Float64)
+    pk_ode!(du, u, p, t, kind)
+    du[pk_dose_target_index(kind)] += infusion_rate
+    return nothing
+end
+
 # -------------------------
 # OneCompOralFirstOrder
 # -------------------------
@@ -78,6 +88,12 @@ end
 
 function pk_conc(u, p, ::OneCompOralFirstOrder)
     return u[2] / p.V
+end
+
+function pk_ode_with_infusion!(du, u, p, t, kind::OneCompOralFirstOrder, infusion_rate::Float64)
+    pk_ode!(du, u, p, t, kind)
+    du[pk_dose_target_index(kind)] += infusion_rate
+    return nothing
 end
 
 # -------------------------
@@ -112,6 +128,12 @@ end
 
 function pk_conc(u, p, ::TwoCompIVBolus)
     return u[1] / p.V1
+end
+
+function pk_ode_with_infusion!(du, u, p, t, kind::TwoCompIVBolus, infusion_rate::Float64)
+    pk_ode!(du, u, p, t, kind)
+    du[pk_dose_target_index(kind)] += infusion_rate
+    return nothing
 end
 
 # -------------------------
@@ -150,6 +172,12 @@ function pk_conc(u, p, ::TwoCompOral)
     return u[2] / p.V1
 end
 
+function pk_ode_with_infusion!(du, u, p, t, kind::TwoCompOral, infusion_rate::Float64)
+    pk_ode!(du, u, p, t, kind)
+    du[pk_dose_target_index(kind)] += infusion_rate
+    return nothing
+end
+
 # -------------------------
 # ThreeCompIVBolus
 # -------------------------
@@ -186,6 +214,12 @@ end
 
 function pk_conc(u, p, ::ThreeCompIVBolus)
     return u[1] / p.V1
+end
+
+function pk_ode_with_infusion!(du, u, p, t, kind::ThreeCompIVBolus, infusion_rate::Float64)
+    pk_ode!(du, u, p, t, kind)
+    du[pk_dose_target_index(kind)] += infusion_rate
+    return nothing
 end
 
 # -------------------------
@@ -236,6 +270,12 @@ function pk_conc(u, p, ::TransitAbsorption)
     return u[N+1] / p.V
 end
 
+function pk_ode_with_infusion!(du, u, p, t, kind::TransitAbsorption, infusion_rate::Float64)
+    pk_ode!(du, u, p, t, kind)
+    du[pk_dose_target_index(kind)] += infusion_rate
+    return nothing
+end
+
 # -------------------------
 # MichaelisMentenElimination
 # -------------------------
@@ -268,4 +308,10 @@ end
 
 function pk_conc(u, p, ::MichaelisMentenElimination)
     return u[1] / p.V
+end
+
+function pk_ode_with_infusion!(du, u, p, t, kind::MichaelisMentenElimination, infusion_rate::Float64)
+    pk_ode!(du, u, p, t, kind)
+    du[pk_dose_target_index(kind)] += infusion_rate
+    return nothing
 end

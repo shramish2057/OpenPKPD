@@ -35,6 +35,16 @@ include("test_helpers.jl")
         include("test_michaelis_menten.jl")
     end
 
+    # IV Infusion administration
+    @testset "IV Infusion" begin
+        include("test_infusion.jl")
+    end
+
+    # Residual Error Models
+    @testset "Residual Error Models" begin
+        include("test_residual_error.jl")
+    end
+
     # PKPD coupling tests
     @testset "PKPD Coupling" begin
         include("test_pkpd.jl")
@@ -93,5 +103,25 @@ include("test_helpers.jl")
     # Clinical Trial Simulation
     @testset "Trial" begin
         include("test_trial.jl")
+    end
+
+    # Model Import (NONMEM, Monolix)
+    @testset "Model Import" begin
+        include("test_import.jl")
+    end
+
+    # CDISC/SDTM Data Support
+    @testset "CDISC Data" begin
+        include("test_cdisc.jl")
+    end
+
+    # Visual Predictive Check (VPC)
+    @testset "VPC" begin
+        include("test_vpc.jl")
+    end
+
+    # Parameter Estimation (NLME)
+    @testset "Estimation" begin
+        include("test_estimation.jl")
     end
 end

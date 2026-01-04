@@ -3,18 +3,19 @@ One-Compartment PK Simulations
 
 This module provides simulation functions for one-compartment PK models:
 - IV bolus (OneCompIVBolus)
+- IV infusion (OneCompIVBolus with duration > 0)
 - Oral first-order absorption (OneCompOralFirstOrder)
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
-from .._core import _require_julia, _simresult_to_py, _to_julia_vector
+from .._core import _require_julia, _simresult_to_py, _to_julia_vector, _create_dose_events
 
 
 def simulate_pk_iv_bolus(
     cl: float,
     v: float,
-    doses: List[Dict[str, float]],
+    doses: List[Dict[str, Union[float, int]]],
     t0: float,
     t1: float,
     saveat: List[float],
@@ -24,17 +25,24 @@ def simulate_pk_iv_bolus(
     maxiters: int = 10**7,
 ) -> Dict[str, Any]:
     """
-    Run a one-compartment IV bolus PK simulation.
+    Run a one-compartment IV bolus or infusion PK simulation.
+
+    Supports both IV bolus (instantaneous) and IV infusion (zero-order input)
+    administration by specifying optional 'duration' in dose events.
 
     Model equations:
-        dA/dt = -k * A
+        For bolus: dA/dt = -k * A (with instantaneous input at dose times)
+        For infusion: dA/dt = R - k * A (where R = amount/duration during infusion)
         C = A / V
         k = CL / V
 
     Args:
         cl: Clearance (volume/time)
         v: Volume of distribution
-        doses: List of dose events, each a dict with 'time' and 'amount'
+        doses: List of dose events, each a dict with:
+            - 'time': Dose administration time
+            - 'amount': Total drug amount
+            - 'duration' (optional): Infusion duration (0 = bolus, default)
         t0: Simulation start time
         t1: Simulation end time
         saveat: List of time points for output
@@ -51,25 +59,32 @@ def simulate_pk_iv_bolus(
         - metadata: Dict of run metadata
 
     Example:
+        >>> # IV bolus
         >>> result = openpkpd.simulate_pk_iv_bolus(
         ...     cl=1.0, v=10.0,
         ...     doses=[{"time": 0.0, "amount": 100.0}],
         ...     t0=0.0, t1=24.0,
         ...     saveat=[0.0, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0]
         ... )
-        >>> print(f"Cmax: {max(result['observations']['conc'])}")
+        >>>
+        >>> # IV infusion (100 mg over 1 hour)
+        >>> result = openpkpd.simulate_pk_iv_bolus(
+        ...     cl=1.0, v=10.0,
+        ...     doses=[{"time": 0.0, "amount": 100.0, "duration": 1.0}],
+        ...     t0=0.0, t1=24.0,
+        ...     saveat=[0.0, 0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0]
+        ... )
     """
     jl = _require_julia()
 
-    DoseEvent = jl.OpenPKPDCore.DoseEvent
     ModelSpec = jl.OpenPKPDCore.ModelSpec
     OneCompIVBolus = jl.OpenPKPDCore.OneCompIVBolus
     OneCompIVBolusParams = jl.OpenPKPDCore.OneCompIVBolusParams
     SimGrid = jl.OpenPKPDCore.SimGrid
     SolverSpec = jl.OpenPKPDCore.SolverSpec
 
-    dose_objs = [DoseEvent(float(d["time"]), float(d["amount"])) for d in doses]
-    doses_vec = _to_julia_vector(jl, dose_objs, DoseEvent)
+    # Create dose events with optional duration support
+    doses_vec = _create_dose_events(jl, doses)
 
     spec = ModelSpec(OneCompIVBolus(), "py_iv_bolus", OneCompIVBolusParams(float(cl), float(v)), doses_vec)
     grid = SimGrid(float(t0), float(t1), [float(x) for x in saveat])

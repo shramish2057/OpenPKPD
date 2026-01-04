@@ -241,7 +241,12 @@ function _parse_model_spec(spec::Dict)
     params_dict = spec["params"]
     doses_raw = get(spec, "doses", [])
 
-    doses = [OpenPKPDCore.DoseEvent(Float64(d["time"]), Float64(d["amount"])) for d in doses_raw]
+    # Support both bolus and infusion doses - duration is optional (0.0 = bolus)
+    doses = [OpenPKPDCore.DoseEvent(
+        Float64(d["time"]),
+        Float64(d["amount"]),
+        Float64(get(d, "duration", 0.0))
+    ) for d in doses_raw]
 
     if kind_str == "OneCompIVBolus"
         params = OpenPKPDCore.OneCompIVBolusParams(
@@ -769,6 +774,715 @@ function cmd_metrics(args)
 end
 
 # ============================================================================
+# Import Command (NONMEM / Monolix)
+# ============================================================================
+
+const IMPORT_HELP = """
+Import a model from NONMEM control file or Monolix project.
+
+This command parses external model files and converts them to OpenPKPD format.
+
+Arguments:
+  --file PATH      Path to .ctl (NONMEM) or .mlxtran (Monolix) file (required)
+  --format FORMAT  Input format: nonmem or monolix (auto-detected if not specified)
+  --out PATH       Output path for OpenPKPD JSON spec (required)
+
+Examples:
+  openpkpd import --file model.ctl --out openpkpd_spec.json
+  openpkpd import --file project.mlxtran --format monolix --out spec.json
+"""
+
+function cmd_import(args)
+    filepath = args["file"]
+    out = args["out"]
+    format = get(args, "format", nothing)
+
+    if !isfile(filepath)
+        _die("File not found: $filepath")
+    end
+
+    # Auto-detect format
+    if format === nothing
+        if endswith(filepath, ".ctl") || endswith(filepath, ".mod")
+            format = "nonmem"
+        elseif endswith(filepath, ".mlxtran")
+            format = "monolix"
+        else
+            _die("Cannot auto-detect format. Please specify --format nonmem or --format monolix")
+        end
+    end
+
+    if format == "nonmem"
+        result = OpenPKPDCore.parse_nonmem_control(filepath)
+        model_spec, pop_spec, metadata = OpenPKPDCore.convert_nonmem_to_openpkpd(result)
+        _info("Parsed NONMEM control file: $(result.problem)")
+    elseif format == "monolix"
+        result = OpenPKPDCore.parse_monolix_project(filepath)
+        model_spec, pop_spec, metadata = OpenPKPDCore.convert_monolix_to_openpkpd(result)
+        _info("Parsed Monolix project")
+    else
+        _die("Unknown format: $format. Use 'nonmem' or 'monolix'")
+    end
+
+    # Write output
+    output = Dict(
+        "model" => Dict(
+            "kind" => string(typeof(model_spec.kind)),
+            "params" => model_spec.params,
+            "doses" => model_spec.doses
+        ),
+        "metadata" => metadata
+    )
+
+    if pop_spec !== nothing
+        output["population"] = Dict(
+            "iiv" => pop_spec.iiv !== nothing ? Dict(
+                "kind" => string(typeof(pop_spec.iiv.kind)),
+                "omegas" => pop_spec.iiv.omegas,
+                "n" => pop_spec.iiv.n
+            ) : nothing
+        )
+    end
+
+    _write_json(out, output)
+    _info("Written OpenPKPD specification to: $out")
+end
+
+# ============================================================================
+# NCA Command (Non-Compartmental Analysis)
+# ============================================================================
+
+const NCA_HELP = """
+Run Non-Compartmental Analysis on observed or simulated data.
+
+Arguments:
+  --data PATH       Path to data file (CSV with time, conc columns) (required)
+  --dose FLOAT      Dose amount for CL/F and Vz/F calculation (required)
+  --out PATH        Output path for NCA results (required)
+  --method METHOD   AUC method: linear, log_linear, linear_up_log_down (default: linear_up_log_down)
+  --tau FLOAT       Dosing interval for steady-state metrics (optional)
+
+Examples:
+  openpkpd nca --data pk_data.csv --dose 100 --out nca_results.json
+  openpkpd nca --data ss_data.csv --dose 100 --tau 24 --out nca_ss.json
+"""
+
+function cmd_nca(args)
+    data_path = args["data"]
+    dose = parse(Float64, args["dose"])
+    out = args["out"]
+    method_str = get(args, "method", "linear_up_log_down")
+    tau_str = get(args, "tau", nothing)
+
+    if !isfile(data_path)
+        _die("Data file not found: $data_path")
+    end
+
+    # Read CSV data
+    lines = readlines(data_path)
+    if length(lines) < 2
+        _die("Data file must have header and at least one data row")
+    end
+
+    header = split(lines[1], ",")
+    time_idx = findfirst(x -> lowercase(strip(x)) in ["time", "t"], header)
+    conc_idx = findfirst(x -> lowercase(strip(x)) in ["conc", "concentration", "dv", "y"], header)
+
+    if time_idx === nothing || conc_idx === nothing
+        _die("Data file must have 'time' and 'conc' columns")
+    end
+
+    times = Float64[]
+    concs = Float64[]
+    for line in lines[2:end]
+        parts = split(line, ",")
+        if length(parts) >= max(time_idx, conc_idx)
+            t = tryparse(Float64, strip(parts[time_idx]))
+            c = tryparse(Float64, strip(parts[conc_idx]))
+            if t !== nothing && c !== nothing
+                push!(times, t)
+                push!(concs, c)
+            end
+        end
+    end
+
+    if length(times) < 3
+        _die("Need at least 3 data points for NCA")
+    end
+
+    # Set up NCA method
+    method = if method_str == "linear"
+        OpenPKPDCore.LinearMethod()
+    elseif method_str == "log_linear"
+        OpenPKPDCore.LogLinearMethod()
+    else
+        OpenPKPDCore.LinearUpLogDownMethod()
+    end
+
+    # Run NCA
+    tau = tau_str !== nothing ? parse(Float64, tau_str) : nothing
+
+    nca_result = OpenPKPDCore.run_nca(times, concs, dose; method=method, tau=tau)
+
+    # Build output
+    output = Dict(
+        "cmax" => nca_result.cmax,
+        "tmax" => nca_result.tmax,
+        "clast" => nca_result.clast,
+        "tlast" => nca_result.tlast,
+        "auc_0_t" => nca_result.auc_0_t,
+        "auc_0_inf" => nca_result.auc_0_inf,
+        "aumc_0_t" => nca_result.aumc_0_t,
+        "aumc_0_inf" => nca_result.aumc_0_inf,
+        "lambda_z" => nca_result.lambda_z,
+        "half_life" => nca_result.half_life,
+        "mrt" => nca_result.mrt,
+        "cl_f" => nca_result.cl_f,
+        "vz_f" => nca_result.vz_f,
+        "vss" => nca_result.vss,
+        "method" => method_str,
+        "dose" => dose,
+        "n_points" => length(times)
+    )
+
+    if tau !== nothing
+        output["tau"] = tau
+        output["auc_0_tau"] = get(nca_result, :auc_0_tau, nothing)
+        output["cavg"] = get(nca_result, :cavg, nothing)
+    end
+
+    _write_json(out, output)
+    _info("NCA results written to: $out")
+    println("Cmax: $(nca_result.cmax)")
+    println("AUC(0-inf): $(nca_result.auc_0_inf)")
+    println("Half-life: $(nca_result.half_life)")
+    println("CL/F: $(nca_result.cl_f)")
+end
+
+# ============================================================================
+# Helper: Parse Population Specification
+# ============================================================================
+
+function _parse_population_spec(spec::Dict)
+    model_spec = _parse_model_spec(spec["model"])
+    grid = _parse_grid(spec["grid"])
+    solver = haskey(spec, "solver") ? _parse_solver(spec["solver"]) : OpenPKPDCore.SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
+
+    iiv = haskey(spec, "iiv") ? _parse_iiv_spec(spec["iiv"]) : nothing
+    iov = haskey(spec, "iov") ? _parse_iov_spec(spec["iov"]) : nothing
+    cov_model = haskey(spec, "covariate_model") ? _parse_covariate_model(spec["covariate_model"]) : nothing
+    covariates = haskey(spec, "covariates") ? _parse_individual_covariates(spec["covariates"]) : OpenPKPDCore.IndividualCovariates[]
+
+    pop_spec = OpenPKPDCore.PopulationSpec(model_spec, iiv, iov, cov_model, covariates)
+
+    return pop_spec, grid, solver
+end
+
+function _parse_estimation_model_spec(spec::Dict)
+    model_spec = _parse_model_spec(spec["model"])
+    grid = _parse_grid(spec["grid"])
+    solver = haskey(spec, "solver") ? _parse_solver(spec["solver"]) : OpenPKPDCore.SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
+    return model_spec, grid, solver
+end
+
+# ============================================================================
+# VPC Command (Visual Predictive Check)
+# ============================================================================
+
+const VPC_HELP = """
+Run Visual Predictive Check analysis.
+
+Arguments:
+  --observed PATH     Path to observed data CSV (required)
+  --pop-spec PATH     Path to population specification JSON (required)
+  --out PATH          Output path for VPC results (required)
+  --n-sim INT         Number of simulations (default: 200)
+  --n-bins INT        Number of time bins (default: 8)
+  --pi LEVELS         Prediction interval levels, comma-separated (default: 0.05,0.50,0.95)
+  --pcvpc             Use prediction-corrected VPC
+
+Examples:
+  openpkpd vpc --observed data.csv --pop-spec pop.json --out vpc.json
+  openpkpd vpc --observed data.csv --pop-spec pop.json --out vpc.json --pcvpc --n-sim 500
+"""
+
+function cmd_vpc(args)
+    observed_path = args["observed"]
+    pop_spec_path = args["pop-spec"]
+    out = args["out"]
+    n_sim = parse(Int, get(args, "n-sim", "200"))
+    n_bins = parse(Int, get(args, "n-bins", "8"))
+    pi_str = get(args, "pi", "0.05,0.50,0.95")
+    pcvpc = get(args, "pcvpc", false)
+
+    if !isfile(observed_path)
+        _die("Observed data file not found: $observed_path")
+    end
+    if !isfile(pop_spec_path)
+        _die("Population spec file not found: $pop_spec_path")
+    end
+
+    # Parse PI levels
+    pi_levels = [parse(Float64, strip(x)) for x in split(pi_str, ",")]
+
+    # Read observed data
+    observed = _read_observed_data(observed_path)
+
+    # Read population spec
+    pop_spec_json = JSON.parsefile(pop_spec_path)
+    pop_spec, grid, solver = _parse_population_spec(pop_spec_json)
+
+    # VPC config
+    config = OpenPKPDCore.VPCConfig(
+        pi_levels = pi_levels,
+        binning = OpenPKPDCore.QuantileBinning(n_bins),
+        n_simulations = n_sim,
+        n_bootstrap = 500,
+        prediction_corrected = pcvpc,
+        seed = UInt64(12345)
+    )
+
+    # Run VPC
+    vpc_result = if pcvpc
+        OpenPKPDCore.compute_pcvpc(observed, pop_spec, grid, solver; config=config)
+    else
+        OpenPKPDCore.compute_vpc(observed, pop_spec, grid, solver; config=config)
+    end
+
+    # Build output
+    output = Dict(
+        "n_subjects" => vpc_result.n_subjects_observed,
+        "n_observations" => vpc_result.n_observations_observed,
+        "n_simulations" => vpc_result.n_simulations,
+        "prediction_corrected" => pcvpc,
+        "pi_levels" => pi_levels,
+        "bins" => [
+            Dict(
+                "id" => bin.bin_id,
+                "time_min" => bin.time_min,
+                "time_max" => bin.time_max,
+                "time_midpoint" => bin.time_midpoint,
+                "n_observed" => bin.n_observed,
+                "percentiles" => [
+                    Dict(
+                        "level" => p.level,
+                        "observed" => p.observed,
+                        "simulated_median" => p.simulated_median,
+                        "simulated_lower" => p.simulated_lower,
+                        "simulated_upper" => p.simulated_upper
+                    ) for p in bin.percentiles
+                ]
+            ) for bin in vpc_result.bins
+        ]
+    )
+
+    _write_json(out, output)
+    _info("VPC results written to: $out")
+    _info("Bins: $(length(vpc_result.bins)), Subjects: $(vpc_result.n_subjects_observed)")
+end
+
+function _read_observed_data(path::String)
+    lines = readlines(path)
+    header = split(lines[1], ",")
+
+    id_idx = findfirst(x -> lowercase(strip(x)) in ["id", "subject", "usubjid"], header)
+    time_idx = findfirst(x -> lowercase(strip(x)) in ["time", "t"], header)
+    dv_idx = findfirst(x -> lowercase(strip(x)) in ["dv", "conc", "y", "observation"], header)
+
+    if time_idx === nothing || dv_idx === nothing
+        error("Data must have 'time' and 'dv' (or 'conc') columns")
+    end
+
+    # Group by subject
+    subjects = Dict{String, Tuple{Vector{Float64}, Vector{Float64}}}()
+    default_doses = [OpenPKPDCore.DoseEvent(0.0, 100.0)]
+
+    for line in lines[2:end]
+        parts = split(line, ",")
+        if length(parts) >= max(time_idx, dv_idx)
+            subj_id = id_idx !== nothing ? strip(parts[id_idx]) : "SUBJ001"
+            t = tryparse(Float64, strip(parts[time_idx]))
+            dv = tryparse(Float64, strip(parts[dv_idx]))
+
+            if t !== nothing && dv !== nothing
+                if !haskey(subjects, subj_id)
+                    subjects[subj_id] = (Float64[], Float64[])
+                end
+                push!(subjects[subj_id][1], t)
+                push!(subjects[subj_id][2], dv)
+            end
+        end
+    end
+
+    # Convert to ObservedData
+    subject_data = [
+        OpenPKPDCore.SubjectData(id, times, obs, default_doses)
+        for (id, (times, obs)) in subjects
+    ]
+
+    return OpenPKPDCore.ObservedData(subject_data)
+end
+
+# ============================================================================
+# Estimate Command (Parameter Estimation)
+# ============================================================================
+
+const ESTIMATE_HELP = """
+Run parameter estimation using NLME methods.
+
+Arguments:
+  --data PATH         Path to observed data CSV (required)
+  --model-spec PATH   Path to model specification JSON (required)
+  --out PATH          Output path for estimation results (required)
+  --method METHOD     Estimation method: laplacian, foce, saem (default: foce)
+  --max-iter INT      Maximum iterations (default: 500)
+  --compute-se        Compute standard errors (default: true)
+
+Examples:
+  openpkpd estimate --data pk_data.csv --model-spec model.json --out est.json
+  openpkpd estimate --data data.csv --model-spec model.json --out est.json --method saem
+"""
+
+function cmd_estimate(args)
+    data_path = args["data"]
+    model_spec_path = args["model-spec"]
+    out = args["out"]
+    method_str = get(args, "method", "foce")
+    max_iter = parse(Int, get(args, "max-iter", "500"))
+    compute_se = get(args, "compute-se", "true") == "true"
+
+    if !isfile(data_path)
+        _die("Data file not found: $data_path")
+    end
+    if !isfile(model_spec_path)
+        _die("Model spec file not found: $model_spec_path")
+    end
+
+    # Read observed data
+    observed = _read_observed_data(data_path)
+
+    # Read model specification
+    spec_json = JSON.parsefile(model_spec_path)
+    model_spec, grid, solver = _parse_estimation_model_spec(spec_json)
+
+    # Get initial values from spec
+    theta_init = get(spec_json, "theta_init", nothing)
+    omega_init = get(spec_json, "omega_init", nothing)
+
+    if theta_init === nothing
+        _die("Model spec must include 'theta_init' for initial parameter values")
+    end
+    if omega_init === nothing
+        _die("Model spec must include 'omega_init' for initial omega matrix")
+    end
+
+    theta_init = Float64.(theta_init)
+    omega_init = Float64.(hcat(omega_init...))
+
+    # Set up estimation method
+    method = if method_str == "laplacian"
+        OpenPKPDCore.LaplacianMethod()
+    elseif method_str == "saem"
+        OpenPKPDCore.SAEMMethod(n_burn=100, n_iter=100)
+    else
+        OpenPKPDCore.FOCEIMethod()
+    end
+
+    # Set up sigma
+    sigma_init = OpenPKPDCore.ResidualErrorSpec(
+        OpenPKPDCore.ProportionalError(),
+        OpenPKPDCore.ProportionalErrorParams(0.1),
+        :conc,
+        UInt64(1)
+    )
+
+    # Estimation config
+    config = OpenPKPDCore.EstimationConfig(
+        method;
+        theta_init = theta_init,
+        omega_init = omega_init,
+        sigma_init = sigma_init,
+        max_iter = max_iter,
+        compute_se = compute_se,
+        verbose = true
+    )
+
+    _info("Running estimation with $(typeof(method))...")
+    result = OpenPKPDCore.estimate(observed, model_spec, config; grid=grid, solver=solver)
+
+    # Build output
+    output = Dict(
+        "method" => method_str,
+        "convergence" => result.convergence,
+        "n_iterations" => result.n_iterations,
+        "ofv" => result.ofv,
+        "aic" => result.aic,
+        "bic" => result.bic,
+        "theta" => result.theta,
+        "theta_se" => result.theta_se,
+        "theta_rse" => result.theta_rse,
+        "omega" => [collect(row) for row in eachrow(result.omega)],
+        "omega_corr" => [collect(row) for row in eachrow(result.omega_corr)],
+        "n_subjects" => length(result.individuals),
+        "runtime_seconds" => result.runtime_seconds
+    )
+
+    if result.theta_ci_lower !== nothing
+        output["theta_ci_lower"] = result.theta_ci_lower
+        output["theta_ci_upper"] = result.theta_ci_upper
+    end
+
+    _write_json(out, output)
+    _info("Estimation results written to: $out")
+    println("Convergence: $(result.convergence)")
+    println("OFV: $(round(result.ofv, digits=3))")
+    println("Theta: $(round.(result.theta, digits=4))")
+    if result.theta_rse !== nothing
+        println("RSE%: $(round.(result.theta_rse, digits=1))")
+    end
+end
+
+# ============================================================================
+# Trial Simulation Command
+# ============================================================================
+
+const TRIAL_HELP = """
+Run clinical trial simulation.
+
+Arguments:
+  --spec PATH         Path to trial specification JSON (required)
+  --out PATH          Output path for trial results (required)
+  --replicates N      Number of trial replicates for power analysis (default: 1)
+
+Supported study designs:
+  - ParallelDesign: Parallel group studies
+  - CrossoverDesign: Crossover studies
+  - DoseEscalationDesign: Phase I dose escalation (3+3, mTPI, CRM)
+  - BioequivalenceDesign: BE studies
+
+Trial spec structure:
+  {
+    "name": "Phase 2 Study",
+    "design": {"type": "parallel", "n_arms": 2},
+    "arms": [
+      {
+        "name": "Placebo",
+        "dose": 0.0,
+        "n_subjects": 50
+      },
+      {
+        "name": "Active",
+        "dose": 100.0,
+        "n_subjects": 50
+      }
+    ],
+    "duration_days": 28,
+    "pk_sampling_times": [0, 1, 2, 4, 8, 12, 24],
+    "endpoints": [{"name": "pk_auc", "type": "pk", "metric": "auc_0_inf"}]
+  }
+
+Examples:
+  openpkpd trial --spec trial_spec.json --out trial_result.json
+  openpkpd trial --spec trial_spec.json --out trial_result.json --replicates 100
+"""
+
+function cmd_trial(args)
+    spec_path = args["spec"]
+    out = args["out"]
+    n_replicates = parse(Int, get(args, "replicates", "1"))
+
+    if !isfile(spec_path)
+        _die("Spec file not found: $spec_path")
+    end
+
+    spec_dict = JSON.parsefile(spec_path)
+    _info("Running trial simulation: $(get(spec_dict, "name", "Unnamed Trial"))")
+
+    # Parse trial specification
+    design = _parse_trial_design(spec_dict["design"])
+    arms = [_parse_treatment_arm(a) for a in spec_dict["arms"]]
+    endpoints = haskey(spec_dict, "endpoints") ?
+        [_parse_endpoint(e) for e in spec_dict["endpoints"]] :
+        OpenPKPDCore.EndpointSpec[]
+
+    duration_days = Float64(get(spec_dict, "duration_days", 28.0))
+    pk_sampling = haskey(spec_dict, "pk_sampling_times") ?
+        [Float64(t) for t in spec_dict["pk_sampling_times"]] :
+        [0.0, 0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0]
+
+    trial_spec = OpenPKPDCore.TrialSpec(
+        get(spec_dict, "name", "CLI Trial"),
+        design,
+        arms;
+        duration_days = duration_days,
+        pk_sampling_times = pk_sampling,
+        endpoints = endpoints,
+        n_replicates = n_replicates,
+        seed = UInt64(get(spec_dict, "seed", 12345))
+    )
+
+    # Run trial simulation
+    if n_replicates > 1
+        _info("Running power simulation with $n_replicates replicates...")
+        result = OpenPKPDCore.run_power_simulation(trial_spec)
+    else
+        result = OpenPKPDCore.simulate_trial(trial_spec)
+    end
+
+    # Build output
+    output = Dict(
+        "trial_name" => result.trial_name,
+        "design_type" => result.design_type,
+        "n_replicates" => result.n_replicates,
+        "seed" => result.seed,
+        "arms" => Dict(
+            name => Dict(
+                "n_enrolled" => arm.n_enrolled,
+                "n_completed" => arm.n_completed,
+                "n_dropout" => arm.n_dropout,
+                "summary_stats" => arm.summary_stats
+            ) for (name, arm) in result.arms
+        ),
+        "endpoint_analyses" => result.endpoint_analyses,
+        "power_estimates" => result.power_estimates
+    )
+
+    if result.be_results !== nothing
+        output["be_results"] = result.be_results
+    end
+
+    _write_json(out, output)
+    _info("Trial results written to: $out")
+
+    # Print summary
+    for (arm_name, arm_result) in result.arms
+        println("  $arm_name: $(arm_result.n_completed)/$(arm_result.n_enrolled) completed")
+    end
+
+    if !isempty(result.power_estimates)
+        println("Power estimates:")
+        for (endpoint, power) in result.power_estimates
+            println("  $endpoint: $(round(power * 100, digits=1))%")
+        end
+    end
+end
+
+function _parse_trial_design(design_dict)
+    design_type = lowercase(get(design_dict, "type", "parallel"))
+
+    if design_type == "parallel"
+        n_arms = get(design_dict, "n_arms", 2)
+        return OpenPKPDCore.ParallelDesign(n_arms)
+    elseif design_type == "crossover"
+        n_periods = get(design_dict, "n_periods", 2)
+        n_sequences = get(design_dict, "n_sequences", 2)
+        washout = Float64(get(design_dict, "washout_duration", 7.0))
+        return OpenPKPDCore.CrossoverDesign(n_periods, n_sequences; washout_duration=washout)
+    elseif design_type == "dose_escalation"
+        dose_levels = [Float64(d) for d in design_dict["dose_levels"]]
+        return OpenPKPDCore.DoseEscalationDesign(dose_levels)
+    elseif design_type == "bioequivalence"
+        return OpenPKPDCore.BioequivalenceDesign()
+    else
+        error("Unknown design type: $design_type")
+    end
+end
+
+function _parse_treatment_arm(arm_dict)
+    name = arm_dict["name"]
+    dose = Float64(get(arm_dict, "dose", 100.0))
+    n_subjects = get(arm_dict, "n_subjects", 50)
+
+    # Create a simple model spec for the arm
+    params = OpenPKPDCore.OneCompIVBolusParams(10.0, 100.0)  # Default CL, V
+    doses = [OpenPKPDCore.DoseEvent(0.0, dose)]
+    model_spec = OpenPKPDCore.ModelSpec(OpenPKPDCore.OneCompIVBolus(), name, params, doses)
+
+    regimen = OpenPKPDCore.DosingRegimen(OpenPKPDCore.QD(), dose, 28)
+
+    return OpenPKPDCore.TreatmentArm(name, model_spec, regimen; n_subjects=n_subjects)
+end
+
+function _parse_endpoint(endpoint_dict)
+    name = Symbol(endpoint_dict["name"])
+    endpoint_type = lowercase(get(endpoint_dict, "type", "pk"))
+
+    if endpoint_type == "pk"
+        metric = Symbol(get(endpoint_dict, "metric", "auc_0_inf"))
+        return OpenPKPDCore.PKEndpoint(name; metric=metric)
+    elseif endpoint_type == "pd"
+        metric = Symbol(get(endpoint_dict, "metric", "change_from_baseline"))
+        return OpenPKPDCore.PDEndpoint(name; metric=metric)
+    elseif endpoint_type == "safety"
+        return OpenPKPDCore.SafetyEndpoint(name)
+    else
+        return OpenPKPDCore.PKEndpoint(name)
+    end
+end
+
+# ============================================================================
+# Read CDISC Command
+# ============================================================================
+
+const READ_CDISC_HELP = """
+Read CDISC/SDTM data and convert to OpenPKPD format.
+
+Arguments:
+  --pc PATH           Path to PC (Pharmacokinetic Concentrations) domain CSV (required)
+  --ex PATH           Path to EX (Exposure) domain CSV (optional)
+  --dm PATH           Path to DM (Demographics) domain CSV (optional)
+  --out PATH          Output path for converted data (required)
+
+Examples:
+  openpkpd read-cdisc --pc pc.csv --out data.json
+  openpkpd read-cdisc --pc pc.csv --ex ex.csv --dm dm.csv --out data.json
+"""
+
+function cmd_read_cdisc(args)
+    pc_path = args["pc"]
+    ex_path = get(args, "ex", nothing)
+    dm_path = get(args, "dm", nothing)
+    out = args["out"]
+
+    if !isfile(pc_path)
+        _die("PC file not found: $pc_path")
+    end
+
+    _info("Reading CDISC data...")
+
+    # Read PC domain
+    pc_data = OpenPKPDCore.read_cdisc_pc(pc_path)
+
+    # Read optional domains
+    ex_data = ex_path !== nothing && isfile(ex_path) ? OpenPKPDCore.read_cdisc_ex(ex_path) : nothing
+    dm_data = dm_path !== nothing && isfile(dm_path) ? OpenPKPDCore.read_cdisc_dm(dm_path) : nothing
+
+    # Convert to observed data format
+    observed = OpenPKPDCore.cdisc_to_observed_data(pc_data, ex_data, dm_data)
+
+    # Build output
+    output = Dict(
+        "n_subjects" => OpenPKPDCore.n_subjects(observed),
+        "n_observations" => OpenPKPDCore.n_observations(observed),
+        "subjects" => [
+            Dict(
+                "subject_id" => s.subject_id,
+                "n_observations" => length(s.times),
+                "time_range" => [minimum(s.times), maximum(s.times)]
+            ) for s in observed.subjects
+        ]
+    )
+
+    if dm_data !== nothing
+        output["demographics_available"] = true
+    end
+
+    _write_json(out, output)
+    _info("CDISC data converted and written to: $out")
+    _info("Subjects: $(OpenPKPDCore.n_subjects(observed)), Observations: $(OpenPKPDCore.n_observations(observed))")
+end
+
+# ============================================================================
 # Help Command
 # ============================================================================
 
@@ -786,6 +1500,12 @@ COMMANDS:
     metrics          Compute PK/PD metrics from simulation results
     replay           Replay a simulation from an artifact file
     validate-golden  Run golden validation tests
+    import           Import NONMEM/Monolix model files
+    nca              Run Non-Compartmental Analysis
+    vpc              Run Visual Predictive Check
+    estimate         Run parameter estimation (NLME)
+    read-cdisc       Read CDISC/SDTM data files
+    trial            Run clinical trial simulation
     help             Show this help message
 
 SUPPORTED PK MODELS:
@@ -803,6 +1523,10 @@ EXAMPLES:
     openpkpd population --spec pop_spec.json --out pop_result.json
     openpkpd metrics --artifact result.json --metric cmax
     openpkpd replay --artifact validation/golden/pk_iv_bolus.json
+    openpkpd import --file model.ctl --out spec.json
+    openpkpd nca --data pk_data.csv --dose 100 --out nca.json
+    openpkpd vpc --observed data.csv --pop-spec pop.json --out vpc.json
+    openpkpd estimate --data data.csv --model-spec model.json --out est.json
 
 For more information, visit: https://github.com/openpkpd/openpkpd
 """
@@ -824,6 +1548,18 @@ function cmd_help(command::Union{String,Nothing})
         println(REPLAY_HELP)
     elseif command == "validate-golden"
         println(VALIDATE_GOLDEN_HELP)
+    elseif command == "import"
+        println(IMPORT_HELP)
+    elseif command == "nca"
+        println(NCA_HELP)
+    elseif command == "vpc"
+        println(VPC_HELP)
+    elseif command == "estimate"
+        println(ESTIMATE_HELP)
+    elseif command == "read-cdisc"
+        println(READ_CDISC_HELP)
+    elseif command == "trial"
+        println(TRIAL_HELP)
     else
         println("Unknown command: $command")
         println()
@@ -936,6 +1672,140 @@ function main()
         end
         args = parse_args(rest, rs)
         cmd_metrics(args)
+
+    elseif cmd == "import"
+        rs = ArgParseSettings()
+        @add_arg_table rs begin
+            "--file"
+                required = true
+                help = "Path to .ctl (NONMEM) or .mlxtran (Monolix) file"
+            "--format"
+                required = false
+                help = "Input format: nonmem or monolix (auto-detected if not specified)"
+            "--out"
+                required = true
+                help = "Output path for OpenPKPD JSON spec"
+        end
+        args = parse_args(rest, rs)
+        cmd_import(args)
+
+    elseif cmd == "nca"
+        rs = ArgParseSettings()
+        @add_arg_table rs begin
+            "--data"
+                required = true
+                help = "Path to data file (CSV with time, conc columns)"
+            "--dose"
+                required = true
+                help = "Dose amount for CL/F and Vz/F calculation"
+            "--out"
+                required = true
+                help = "Output path for NCA results"
+            "--method"
+                required = false
+                default = "linear_up_log_down"
+                help = "AUC method: linear, log_linear, linear_up_log_down"
+            "--tau"
+                required = false
+                help = "Dosing interval for steady-state metrics"
+        end
+        args = parse_args(rest, rs)
+        cmd_nca(args)
+
+    elseif cmd == "vpc"
+        rs = ArgParseSettings()
+        @add_arg_table rs begin
+            "--observed"
+                required = true
+                help = "Path to observed data CSV"
+            "--pop-spec"
+                required = true
+                help = "Path to population specification JSON"
+            "--out"
+                required = true
+                help = "Output path for VPC results"
+            "--n-sim"
+                required = false
+                default = "200"
+                help = "Number of simulations"
+            "--n-bins"
+                required = false
+                default = "8"
+                help = "Number of time bins"
+            "--pi"
+                required = false
+                default = "0.05,0.50,0.95"
+                help = "Prediction interval levels, comma-separated"
+            "--pcvpc"
+                action = :store_true
+                help = "Use prediction-corrected VPC"
+        end
+        args = parse_args(rest, rs)
+        cmd_vpc(args)
+
+    elseif cmd == "estimate"
+        rs = ArgParseSettings()
+        @add_arg_table rs begin
+            "--data"
+                required = true
+                help = "Path to observed data CSV"
+            "--model-spec"
+                required = true
+                help = "Path to model specification JSON"
+            "--out"
+                required = true
+                help = "Output path for estimation results"
+            "--method"
+                required = false
+                default = "foce"
+                help = "Estimation method: laplacian, foce, saem"
+            "--max-iter"
+                required = false
+                default = "500"
+                help = "Maximum iterations"
+            "--compute-se"
+                required = false
+                default = "true"
+                help = "Compute standard errors"
+        end
+        args = parse_args(rest, rs)
+        cmd_estimate(args)
+
+    elseif cmd == "read-cdisc"
+        rs = ArgParseSettings()
+        @add_arg_table rs begin
+            "--pc"
+                required = true
+                help = "Path to PC (Pharmacokinetic Concentrations) domain CSV"
+            "--ex"
+                required = false
+                help = "Path to EX (Exposure) domain CSV"
+            "--dm"
+                required = false
+                help = "Path to DM (Demographics) domain CSV"
+            "--out"
+                required = true
+                help = "Output path for converted data"
+        end
+        args = parse_args(rest, rs)
+        cmd_read_cdisc(args)
+
+    elseif cmd == "trial"
+        rs = ArgParseSettings()
+        @add_arg_table rs begin
+            "--spec"
+                required = true
+                help = "Path to trial specification JSON"
+            "--out"
+                required = true
+                help = "Output path for trial results"
+            "--replicates"
+                required = false
+                default = "1"
+                help = "Number of trial replicates for power analysis"
+        end
+        args = parse_args(rest, rs)
+        cmd_trial(args)
 
     else
         _die("Unknown command: $cmd. Use 'openpkpd help' for usage.")

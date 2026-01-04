@@ -14,6 +14,7 @@ export OPENPKPD_VERSION
 # ------------------------------------------------------------------
 include("specs/time_covariates.jl")
 include("specs/specs.jl")
+include("specs/error_models.jl")
 include("specs/sensitivity.jl")
 
 # ------------------------------------------------------------------
@@ -57,6 +58,8 @@ include("engine/sensitivity_population.jl")
 # ------------------------------------------------------------------
 include("engine/events.jl")
 include("engine/callbacks.jl")
+include("engine/infusion.jl")
+include("engine/residual_error.jl")
 include("engine/solve.jl")
 
 # ------------------------------------------------------------------
@@ -86,9 +89,35 @@ include("serialization/serialize_population.jl")
 include("serialization/deserialize_population.jl")
 include("serialization/serialize_sensitivity.jl")
 include("serialization/deserialize_sensitivity.jl")
+include("serialization/serialize_error.jl")
+include("serialization/deserialize_error.jl")
 
 include("analysis/exposure.jl")
 include("analysis/response_metrics.jl")
+
+# ------------------------------------------------------------------
+# Model Import (NONMEM, Monolix)
+# ------------------------------------------------------------------
+include("import/import.jl")
+
+# ------------------------------------------------------------------
+# Data Module (CDISC/SDTM support)
+# ------------------------------------------------------------------
+include("data/data.jl")
+
+# ------------------------------------------------------------------
+# Visual Predictive Check (VPC)
+# Requires data module for ObservedData
+# ------------------------------------------------------------------
+include("analysis/vpc_types.jl")
+include("analysis/binning.jl")
+include("analysis/vpc.jl")
+
+# ------------------------------------------------------------------
+# Parameter Estimation (NLME)
+# FOCE-I, SAEM, Laplacian methods
+# ------------------------------------------------------------------
+include("estimation/estimation.jl")
 
 # ------------------------------------------------------------------
 # NCA (Non-Compartmental Analysis)

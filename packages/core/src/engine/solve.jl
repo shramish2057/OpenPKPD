@@ -44,6 +44,18 @@ function _solver_alg(alg::Symbol)
     return _SOLVER_MAP[alg]()
 end
 
+"""
+Check if any doses in the vector are infusions (duration > 0).
+"""
+function _has_any_infusion(doses::Vector{DoseEvent})::Bool
+    for d in doses
+        if is_infusion(d)
+            return true
+        end
+    end
+    return false
+end
+
 function _dose_callback(doses::Vector{DoseEvent}, t0::Float64, t1::Float64)
     _, dose_times, dose_amounts = normalize_doses_for_sim(doses, t0, t1)
 
@@ -71,33 +83,63 @@ function simulate(
 
     CL = spec.params.CL
     V = spec.params.V
-
-    a0_add, _, _ = normalize_doses_for_sim(spec.doses, grid.t0, grid.t1)
-    A0 = a0_add
-
     p = (CL=CL, V=V)
-    u0 = [A0]
     tspan = (grid.t0, grid.t1)
 
-    prob = ODEProblem(_ode_onecomp_ivbolus!, u0, tspan, p)
-    cb = _dose_callback(spec.doses, grid.t0, grid.t1)
+    # Check if we have any infusion doses
+    if _has_any_infusion(spec.doses)
+        # Use infusion-aware simulation
+        schedule = build_infusion_schedule(spec.doses, grid.t0, grid.t1)
+        u0 = [schedule.initial_amount]
 
-    sol = solve(
-        prob,
-        _solver_alg(solver.alg);
-        reltol=solver.reltol,
-        abstol=solver.abstol,
-        maxiters=solver.maxiters,
-        saveat=grid.saveat,
-        callback=cb,
-    )
+        # Create ODE that includes infusion rate
+        rate_fn = make_infusion_rate_function(schedule)
+        function ode_with_infusion!(du, u, params, t)
+            pk_ode_with_infusion!(du, u, params, t, OneCompIVBolus(), rate_fn(t))
+        end
+
+        prob = ODEProblem(ode_with_infusion!, u0, tspan, p)
+        cb = build_bolus_callback(schedule, pk_dose_target_index(OneCompIVBolus()))
+        tstops = get_infusion_tstops(schedule, grid.t0, grid.t1)
+
+        sol = solve(
+            prob,
+            _solver_alg(solver.alg);
+            reltol=solver.reltol,
+            abstol=solver.abstol,
+            maxiters=solver.maxiters,
+            saveat=grid.saveat,
+            callback=cb,
+            tstops=tstops,
+        )
+    else
+        # Original bolus-only path
+        a0_add, _, _ = normalize_doses_for_sim(spec.doses, grid.t0, grid.t1)
+        A0 = a0_add
+        u0 = [A0]
+
+        prob = ODEProblem(_ode_onecomp_ivbolus!, u0, tspan, p)
+        cb = _dose_callback(spec.doses, grid.t0, grid.t1)
+
+        sol = solve(
+            prob,
+            _solver_alg(solver.alg);
+            reltol=solver.reltol,
+            abstol=solver.abstol,
+            maxiters=solver.maxiters,
+            saveat=grid.saveat,
+            callback=cb,
+        )
+    end
 
     A = [u[1] for u in sol.u]
     C = [a / V for a in A]
 
     states = Dict(:A_central => A)
-
     observations = Dict(:conc => C)
+
+    # Include infusion info in metadata if present
+    dose_schedule = [(d.time, d.amount, d.duration) for d in spec.doses]
 
     metadata = Dict{String,Any}(
         "engine_version" => "0.1.0",
@@ -105,7 +147,7 @@ function simulate(
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
         "abstol" => solver.abstol,
-        "dose_schedule" => [(d.time, d.amount) for d in spec.doses],
+        "dose_schedule" => dose_schedule,
         "deterministic_output_grid" => true,
         "event_semantics_version" => EVENT_SEMANTICS_VERSION,
         "solver_semantics_version" => SOLVER_SEMANTICS_VERSION,
@@ -204,38 +246,66 @@ function simulate(
     validate(solver)
 
     p = pk_param_tuple(spec)
-
-    a0_add, dose_times, dose_amounts = normalize_doses_for_sim(spec.doses, grid.t0, grid.t1)
-
-    u0 = [a0_add, 0.0]
     tspan = (grid.t0, grid.t1)
 
-    function ode!(du, u, params, t)
-        pk_ode!(du, u, params, t, TwoCompIVBolus())
-    end
+    # Check if we have any infusion doses
+    if _has_any_infusion(spec.doses)
+        # Use infusion-aware simulation
+        schedule = build_infusion_schedule(spec.doses, grid.t0, grid.t1)
+        u0 = [schedule.initial_amount, 0.0]
 
-    prob = ODEProblem(ode!, u0, tspan, p)
-
-    cb = nothing
-    if !isempty(dose_times)
-        function affect!(integrator)
-            idx = findfirst(==(integrator.t), dose_times)
-            if idx !== nothing
-                integrator.u[1] += dose_amounts[idx]
-            end
+        # Create ODE that includes infusion rate
+        rate_fn = make_infusion_rate_function(schedule)
+        function ode_with_infusion!(du, u, params, t)
+            pk_ode_with_infusion!(du, u, params, t, TwoCompIVBolus(), rate_fn(t))
         end
-        cb = PresetTimeCallback(dose_times, affect!)
-    end
 
-    sol = solve(
-        prob,
-        _solver_alg(solver.alg);
-        reltol=solver.reltol,
-        abstol=solver.abstol,
-        maxiters=solver.maxiters,
-        saveat=grid.saveat,
-        callback=cb,
-    )
+        prob = ODEProblem(ode_with_infusion!, u0, tspan, p)
+        cb = build_bolus_callback(schedule, pk_dose_target_index(TwoCompIVBolus()))
+        tstops = get_infusion_tstops(schedule, grid.t0, grid.t1)
+
+        sol = solve(
+            prob,
+            _solver_alg(solver.alg);
+            reltol=solver.reltol,
+            abstol=solver.abstol,
+            maxiters=solver.maxiters,
+            saveat=grid.saveat,
+            callback=cb,
+            tstops=tstops,
+        )
+    else
+        # Original bolus-only path
+        a0_add, dose_times, dose_amounts = normalize_doses_for_sim(spec.doses, grid.t0, grid.t1)
+        u0 = [a0_add, 0.0]
+
+        function ode!(du, u, params, t)
+            pk_ode!(du, u, params, t, TwoCompIVBolus())
+        end
+
+        prob = ODEProblem(ode!, u0, tspan, p)
+
+        cb = nothing
+        if !isempty(dose_times)
+            function affect!(integrator)
+                idx = findfirst(==(integrator.t), dose_times)
+                if idx !== nothing
+                    integrator.u[1] += dose_amounts[idx]
+                end
+            end
+            cb = PresetTimeCallback(dose_times, affect!)
+        end
+
+        sol = solve(
+            prob,
+            _solver_alg(solver.alg);
+            reltol=solver.reltol,
+            abstol=solver.abstol,
+            maxiters=solver.maxiters,
+            saveat=grid.saveat,
+            callback=cb,
+        )
+    end
 
     A_central = [u[1] for u in sol.u]
     A_peripheral = [u[2] for u in sol.u]
@@ -244,13 +314,15 @@ function simulate(
     states = Dict(:A_central => A_central, :A_peripheral => A_peripheral)
     observations = Dict(:conc => C)
 
+    dose_schedule = [(d.time, d.amount, d.duration) for d in spec.doses]
+
     metadata = Dict{String,Any}(
         "engine_version" => "0.1.0",
         "model" => "TwoCompIVBolus",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
         "abstol" => solver.abstol,
-        "dose_schedule" => [(d.time, d.amount) for d in spec.doses],
+        "dose_schedule" => dose_schedule,
         "deterministic_output_grid" => true,
         "event_semantics_version" => EVENT_SEMANTICS_VERSION,
         "solver_semantics_version" => SOLVER_SEMANTICS_VERSION,
@@ -339,38 +411,66 @@ function simulate(
     validate(solver)
 
     p = pk_param_tuple(spec)
-
-    a0_add, dose_times, dose_amounts = normalize_doses_for_sim(spec.doses, grid.t0, grid.t1)
-
-    u0 = [a0_add, 0.0, 0.0]  # [A_central, A_periph1, A_periph2]
     tspan = (grid.t0, grid.t1)
 
-    function ode!(du, u, params, t)
-        pk_ode!(du, u, params, t, ThreeCompIVBolus())
-    end
+    # Check if we have any infusion doses
+    if _has_any_infusion(spec.doses)
+        # Use infusion-aware simulation
+        schedule = build_infusion_schedule(spec.doses, grid.t0, grid.t1)
+        u0 = [schedule.initial_amount, 0.0, 0.0]
 
-    prob = ODEProblem(ode!, u0, tspan, p)
-
-    cb = nothing
-    if !isempty(dose_times)
-        function affect!(integrator)
-            idx = findfirst(==(integrator.t), dose_times)
-            if idx !== nothing
-                integrator.u[1] += dose_amounts[idx]
-            end
+        # Create ODE that includes infusion rate
+        rate_fn = make_infusion_rate_function(schedule)
+        function ode_with_infusion!(du, u, params, t)
+            pk_ode_with_infusion!(du, u, params, t, ThreeCompIVBolus(), rate_fn(t))
         end
-        cb = PresetTimeCallback(dose_times, affect!)
-    end
 
-    sol = solve(
-        prob,
-        _solver_alg(solver.alg);
-        reltol=solver.reltol,
-        abstol=solver.abstol,
-        maxiters=solver.maxiters,
-        saveat=grid.saveat,
-        callback=cb,
-    )
+        prob = ODEProblem(ode_with_infusion!, u0, tspan, p)
+        cb = build_bolus_callback(schedule, pk_dose_target_index(ThreeCompIVBolus()))
+        tstops = get_infusion_tstops(schedule, grid.t0, grid.t1)
+
+        sol = solve(
+            prob,
+            _solver_alg(solver.alg);
+            reltol=solver.reltol,
+            abstol=solver.abstol,
+            maxiters=solver.maxiters,
+            saveat=grid.saveat,
+            callback=cb,
+            tstops=tstops,
+        )
+    else
+        # Original bolus-only path
+        a0_add, dose_times, dose_amounts = normalize_doses_for_sim(spec.doses, grid.t0, grid.t1)
+        u0 = [a0_add, 0.0, 0.0]  # [A_central, A_periph1, A_periph2]
+
+        function ode!(du, u, params, t)
+            pk_ode!(du, u, params, t, ThreeCompIVBolus())
+        end
+
+        prob = ODEProblem(ode!, u0, tspan, p)
+
+        cb = nothing
+        if !isempty(dose_times)
+            function affect!(integrator)
+                idx = findfirst(==(integrator.t), dose_times)
+                if idx !== nothing
+                    integrator.u[1] += dose_amounts[idx]
+                end
+            end
+            cb = PresetTimeCallback(dose_times, affect!)
+        end
+
+        sol = solve(
+            prob,
+            _solver_alg(solver.alg);
+            reltol=solver.reltol,
+            abstol=solver.abstol,
+            maxiters=solver.maxiters,
+            saveat=grid.saveat,
+            callback=cb,
+        )
+    end
 
     A_central = [u[1] for u in sol.u]
     A_periph1 = [u[2] for u in sol.u]
@@ -380,13 +480,15 @@ function simulate(
     states = Dict(:A_central => A_central, :A_periph1 => A_periph1, :A_periph2 => A_periph2)
     observations = Dict(:conc => C)
 
+    dose_schedule = [(d.time, d.amount, d.duration) for d in spec.doses]
+
     metadata = Dict{String,Any}(
         "engine_version" => "0.1.0",
         "model" => "ThreeCompIVBolus",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
         "abstol" => solver.abstol,
-        "dose_schedule" => [(d.time, d.amount) for d in spec.doses],
+        "dose_schedule" => dose_schedule,
         "deterministic_output_grid" => true,
         "event_semantics_version" => EVENT_SEMANTICS_VERSION,
         "solver_semantics_version" => SOLVER_SEMANTICS_VERSION,
@@ -484,41 +586,69 @@ function simulate(
     validate(solver)
 
     p = pk_param_tuple(spec)
-
-    a0_add, dose_times, dose_amounts = normalize_doses_for_sim(spec.doses, grid.t0, grid.t1)
-
-    u0 = [a0_add]
     tspan = (grid.t0, grid.t1)
-
-    function ode!(du, u, params, t)
-        pk_ode!(du, u, params, t, MichaelisMentenElimination())
-    end
-
-    prob = ODEProblem(ode!, u0, tspan, p)
-
-    cb = nothing
-    if !isempty(dose_times)
-        function affect!(integrator)
-            idx = findfirst(==(integrator.t), dose_times)
-            if idx !== nothing
-                integrator.u[1] += dose_amounts[idx]
-            end
-        end
-        cb = PresetTimeCallback(dose_times, affect!)
-    end
 
     # Use Rosenbrock23 for stiff nonlinear elimination by default
     alg = solver.alg == :Tsit5 ? Rosenbrock23() : _solver_alg(solver.alg)
 
-    sol = solve(
-        prob,
-        alg;
-        reltol=solver.reltol,
-        abstol=solver.abstol,
-        maxiters=solver.maxiters,
-        saveat=grid.saveat,
-        callback=cb,
-    )
+    # Check if we have any infusion doses
+    if _has_any_infusion(spec.doses)
+        # Use infusion-aware simulation
+        schedule = build_infusion_schedule(spec.doses, grid.t0, grid.t1)
+        u0 = [schedule.initial_amount]
+
+        # Create ODE that includes infusion rate
+        rate_fn = make_infusion_rate_function(schedule)
+        function ode_with_infusion!(du, u, params, t)
+            pk_ode_with_infusion!(du, u, params, t, MichaelisMentenElimination(), rate_fn(t))
+        end
+
+        prob = ODEProblem(ode_with_infusion!, u0, tspan, p)
+        cb = build_bolus_callback(schedule, pk_dose_target_index(MichaelisMentenElimination()))
+        tstops = get_infusion_tstops(schedule, grid.t0, grid.t1)
+
+        sol = solve(
+            prob,
+            alg;
+            reltol=solver.reltol,
+            abstol=solver.abstol,
+            maxiters=solver.maxiters,
+            saveat=grid.saveat,
+            callback=cb,
+            tstops=tstops,
+        )
+    else
+        # Original bolus-only path
+        a0_add, dose_times, dose_amounts = normalize_doses_for_sim(spec.doses, grid.t0, grid.t1)
+        u0 = [a0_add]
+
+        function ode!(du, u, params, t)
+            pk_ode!(du, u, params, t, MichaelisMentenElimination())
+        end
+
+        prob = ODEProblem(ode!, u0, tspan, p)
+
+        cb = nothing
+        if !isempty(dose_times)
+            function affect!(integrator)
+                idx = findfirst(==(integrator.t), dose_times)
+                if idx !== nothing
+                    integrator.u[1] += dose_amounts[idx]
+                end
+            end
+            cb = PresetTimeCallback(dose_times, affect!)
+        end
+
+        sol = solve(
+            prob,
+            alg;
+            reltol=solver.reltol,
+            abstol=solver.abstol,
+            maxiters=solver.maxiters,
+            saveat=grid.saveat,
+            callback=cb,
+        )
+    end
 
     A = [u[1] for u in sol.u]
     C = [a / p.V for a in A]
@@ -526,13 +656,15 @@ function simulate(
     states = Dict(:A_central => A)
     observations = Dict(:conc => C)
 
+    dose_schedule = [(d.time, d.amount, d.duration) for d in spec.doses]
+
     metadata = Dict{String,Any}(
         "engine_version" => "0.1.0",
         "model" => "MichaelisMentenElimination",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
         "abstol" => solver.abstol,
-        "dose_schedule" => [(d.time, d.amount) for d in spec.doses],
+        "dose_schedule" => dose_schedule,
         "deterministic_output_grid" => true,
         "event_semantics_version" => EVENT_SEMANTICS_VERSION,
         "solver_semantics_version" => SOLVER_SEMANTICS_VERSION,

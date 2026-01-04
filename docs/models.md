@@ -621,29 +621,79 @@ Doses are specified using the `DoseEvent` struct.
 **Structure**:
 
 ```julia
-DoseEvent(time::Float64, amount::Float64)
+DoseEvent(time::Float64, amount::Float64, duration::Float64=0.0)
 ```
 
 | Field | Description |
 |-------|-------------|
 | `time` | Time of dose administration |
 | `amount` | Dose amount (mass units) |
+| `duration` | Infusion duration (0.0 = bolus, >0 = infusion) |
 
 **Python format**:
 
 ```python
+# IV Bolus (instantaneous)
 doses = [
     {"time": 0.0, "amount": 100.0},
     {"time": 24.0, "amount": 100.0},
 ]
+
+# IV Infusion (zero-order input over duration)
+doses = [
+    {"time": 0.0, "amount": 100.0, "duration": 1.0},  # 100 mg over 1 hour
+    {"time": 24.0, "amount": 100.0, "duration": 0.5}, # 100 mg over 30 min
+]
+```
+
+### IV Infusion Support
+
+OpenPKPD supports zero-order (constant rate) IV infusions for all IV models:
+
+**Infusion Rate Calculation:**
+$$R = \frac{Amount}{Duration}$$
+
+**Modified ODE (during infusion):**
+$$\frac{dA}{dt} = R - k \cdot A$$
+
+**Example - 1-hour infusion (Julia):**
+
+```julia
+doses = [DoseEvent(0.0, 100.0, 1.0)]  # 100 mg over 1 hour
+spec = ModelSpec(OneCompIVBolus(), "infusion", params, doses)
+result = simulate(spec, grid, solver)
+```
+
+**Example - 1-hour infusion (Python):**
+
+```python
+result = openpkpd.simulate_pk_iv_bolus(
+    cl=5.0, v=50.0,
+    doses=[{"time": 0.0, "amount": 100.0, "duration": 1.0}],
+    t0=0.0, t1=24.0,
+    saveat=[0.0, 0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0]
+)
+```
+
+**Overlapping Infusions:**
+
+Multiple infusions can overlap. OpenPKPD correctly handles the combined infusion rate:
+
+```python
+doses = [
+    {"time": 0.0, "amount": 100.0, "duration": 2.0},   # 50 mg/h for 2 hours
+    {"time": 1.0, "amount": 50.0, "duration": 1.0},    # 50 mg/h for 1 hour (overlaps)
+]
+# Combined rate from t=1 to t=2: 50 + 50 = 100 mg/h
 ```
 
 **Dose Handling Rules**:
 
-- Doses at `t0` are added to the initial condition
+- Doses at `t0` are added to the initial condition (bolus only)
 - Doses in `(t0, t1]` are handled via callbacks
 - Multiple doses at the same time are summed
 - Doses outside `[t0, t1]` are ignored
+- Infusion start/stop events are handled automatically
 
 ---
 
