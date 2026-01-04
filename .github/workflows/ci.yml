@@ -136,12 +136,12 @@ jobs:
               @test MichaelisMentenElimination() isa ModelKind
             end
 
-            # Test all PD models
+            # Test all PD models (note: these are PDModelKind, not ModelKind)
             @testset "PD Models" begin
-              @test DirectEmax() isa ModelKind
-              @test SigmoidEmax() isa ModelKind
-              @test BiophaseEquilibration() isa ModelKind
-              @test IndirectResponseTurnover() isa ModelKind
+              @test DirectEmax() isa PDModelKind
+              @test SigmoidEmax() isa PDModelKind
+              @test BiophaseEquilibration() isa PDModelKind
+              @test IndirectResponseTurnover() isa PDModelKind
             end
 
             println("All model definitions OK")
