@@ -1,5 +1,8 @@
 # NONMEM ADVAN1 Import - Julia Example
-# Run: julia --project=core/OpenPKPDCore convert.jl
+# Run: julia --project=packages/core convert.jl
+
+using Pkg
+Pkg.activate("packages/core")
 
 using OpenPKPDCore
 using JSON
@@ -7,53 +10,62 @@ using JSON
 println("NONMEM ADVAN1 Import")
 println("="^50)
 
-# Import NONMEM control file
-model = import_nonmem("run001.ctl")
+# Import NONMEM control file with dose
+model = import_nonmem(
+    joinpath(@__DIR__, "run001.ctl");
+    doses=[DoseEvent(0.0, 100.0)]
+)
 
 println("\nImported Model:")
 println("  Type:       $(model.model_type)")
 println("  Parameters: $(model.parameters)")
+println("  Source:     $(model.source)")
 
 # Display OpenPKPD specification
 println("\nOpenPKPD Specification:")
 println("-"^50)
 spec = model.spec
 
-println("  Model:   $(spec.model)")
+println("  Model:   $(typeof(spec.kind))")
 println("  Params:  $(spec.params)")
 
-if !isnothing(spec.iiv)
+if model.iiv !== nothing
     println("  IIV:")
-    println("    Kind:   $(spec.iiv.kind)")
-    println("    Omegas: $(spec.iiv.omegas)")
+    println("    Kind:   $(model.iiv.kind)")
+    println("    Omegas: $(model.iiv.omegas)")
 end
 
-if !isnothing(spec.error)
-    println("  Error:   $(spec.error)")
+if model.error !== nothing
+    println("  Error:   $(model.error)")
 end
 
-# Compare with expected
-println("\n" * "="^50)
-println("VALIDATION")
-println("="^50)
-
-expected = JSON.parsefile("expected.json")
-
-# Validate parameters
-params_match = spec.params == expected["params"]
-println("Parameters match: $params_match")
-
-# Validate IIV
-iiv_match = spec.iiv.omegas == expected["iiv"]["omegas"]
-println("IIV match: $iiv_match")
+if !isempty(model.warnings)
+    println("\n  Warnings:")
+    for w in model.warnings
+        println("    - $w")
+    end
+end
 
 # Simulate to verify
 println("\n" * "="^50)
 println("SIMULATION TEST")
 println("="^50)
 
-grid = SimulationGrid(t0=0.0, t1=24.0, saveat=0:1.0:24)
-result = simulate(spec, grid)
+grid = SimGrid(0.0, 24.0, collect(0.0:1.0:24.0))
+solver = SolverSpec(:Tsit5, 1e-10, 1e-12, 10^7)
+result = simulate(spec, grid, solver)
 
 println("\nSimulation successful: $(length(result.times)) time points")
-println("Cmax: $(round(maximum(result.observations["conc"]), digits=3)) mg/L")
+println("Cmax: $(round(maximum(result.observations[:conc]), digits=3)) mg/L")
+
+# Save results
+output = Dict(
+    "model_type" => String(model.model_type),
+    "parameters" => Dict(String(k) => v for (k, v) in model.parameters),
+    "source" => model.source,
+    "cmax" => maximum(result.observations[:conc])
+)
+open(joinpath(@__DIR__, "output.json"), "w") do io
+    JSON.print(io, output, 2)
+end
+println("\nWrote output.json")

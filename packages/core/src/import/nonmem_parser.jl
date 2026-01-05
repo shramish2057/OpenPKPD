@@ -277,6 +277,11 @@ function _parse_theta(lines::Vector{String})::Vector{THETASpec}
             if length(parts) == 1
                 init = parse(Float64, parts[1])
                 push!(thetas, THETASpec(-Inf, init, Inf, fixed))
+            elseif length(parts) == 2
+                # Format: (lower, init) - no upper bound
+                lower = parts[1] == "" || lowercase(parts[1]) == "-inf" ? -Inf : parse(Float64, parts[1])
+                init = parse(Float64, parts[2])
+                push!(thetas, THETASpec(lower, init, Inf, fixed))
             elseif length(parts) == 3
                 lower = parts[1] == "" || lowercase(parts[1]) == "-inf" ? -Inf : parse(Float64, parts[1])
                 init = parse(Float64, parts[2])

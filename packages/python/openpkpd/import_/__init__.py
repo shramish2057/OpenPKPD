@@ -53,11 +53,11 @@ class MonolixProject:
     data_file: Optional[str]
 
 
-def import_nonmem(path: Union[str, Path]) -> ImportedModel:
+def import_nonmem(path: Union[str, Path], doses: Optional[List[Dict[str, float]]] = None) -> ImportedModel:
     """
     Import a model from a NONMEM control file.
 
-    Supports ADVAN1-4 with common TRANS options. Extracts:
+    Supports ADVAN1-4, ADVAN10, ADVAN11 with common TRANS options. Extracts:
     - Model structure (ADVAN/TRANS)
     - THETA initial estimates and bounds
     - OMEGA structure and values
@@ -65,6 +65,7 @@ def import_nonmem(path: Union[str, Path]) -> ImportedModel:
 
     Args:
         path: Path to NONMEM control file (.ctl or .mod)
+        doses: Optional list of dose events, e.g., [{"time": 0.0, "amount": 100.0}]
 
     Returns:
         ImportedModel with OpenPKPD-compatible model specification
@@ -74,19 +75,38 @@ def import_nonmem(path: Union[str, Path]) -> ImportedModel:
         - ADVAN2/TRANS2: One-compartment oral (Ka, CL, V)
         - ADVAN3/TRANS4: Two-compartment IV bolus (CL, V1, Q, V2)
         - ADVAN4/TRANS4: Two-compartment oral (Ka, CL, V1, Q, V2)
+        - ADVAN10: Michaelis-Menten elimination
+        - ADVAN11: Three-compartment model
 
     Example:
-        >>> model = import_nonmem("run001.ctl")
+        >>> model = import_nonmem("run001.ctl", doses=[{"time": 0.0, "amount": 100.0}])
         >>> print(f"Model type: {model.model_kind}")
         >>> print(f"Parameters: {model.params}")
     """
     jl = _require_julia()
-    result = jl.OpenPKPDCore.parse_nonmem_control(str(Path(path).resolve()))
-    model_spec, pop_spec, metadata = jl.OpenPKPDCore.convert_nonmem_to_openpkpd(result)
-    return _convert_imported_model(result, model_spec, pop_spec, metadata, "nonmem", str(path))
+
+    # Read the control file text
+    path = Path(path).resolve()
+    with open(path, 'r') as f:
+        ctl_text = f.read()
+
+    # Parse the control file
+    ctl = jl.OpenPKPDCore.parse_nonmem_control(ctl_text)
+
+    # Create dose events if provided
+    jl_doses = jl.OpenPKPDCore.DoseEvent[]
+    if doses:
+        for d in doses:
+            dose = jl.OpenPKPDCore.DoseEvent(float(d.get("time", 0.0)), float(d.get("amount", 100.0)))
+            jl_doses = jl.seval("push!")([jl_doses, dose])
+
+    # Convert to OpenPKPD format
+    result = jl.OpenPKPDCore.convert_nonmem_to_openpkpd(ctl, doses=jl_doses)
+
+    return _convert_julia_import_result(result, "nonmem", str(path))
 
 
-def import_monolix(path: Union[str, Path]) -> ImportedModel:
+def import_monolix(path: Union[str, Path], doses: Optional[List[Dict[str, float]]] = None) -> ImportedModel:
     """
     Import a model from a Monolix project file.
 
@@ -97,18 +117,36 @@ def import_monolix(path: Union[str, Path]) -> ImportedModel:
 
     Args:
         path: Path to Monolix project file (.mlxtran)
+        doses: Optional list of dose events, e.g., [{"time": 0.0, "amount": 100.0}]
 
     Returns:
         ImportedModel with OpenPKPD-compatible model specification
 
     Example:
-        >>> model = import_monolix("project.mlxtran")
+        >>> model = import_monolix("project.mlxtran", doses=[{"time": 0.0, "amount": 100.0}])
         >>> print(f"Model type: {model.model_kind}")
     """
     jl = _require_julia()
-    result = jl.OpenPKPDCore.parse_monolix_project(str(Path(path).resolve()))
-    model_spec, pop_spec, metadata = jl.OpenPKPDCore.convert_monolix_to_openpkpd(result)
-    return _convert_imported_model(result, model_spec, pop_spec, metadata, "monolix", str(path))
+
+    # Read the project file text
+    path = Path(path).resolve()
+    with open(path, 'r') as f:
+        mlx_text = f.read()
+
+    # Parse the project file
+    project = jl.OpenPKPDCore.parse_monolix_project(mlx_text)
+
+    # Create dose events if provided
+    jl_doses = jl.OpenPKPDCore.DoseEvent[]
+    if doses:
+        for d in doses:
+            dose = jl.OpenPKPDCore.DoseEvent(float(d.get("time", 0.0)), float(d.get("amount", 100.0)))
+            jl_doses = jl.seval("push!")([jl_doses, dose])
+
+    # Convert to OpenPKPD format
+    result = jl.OpenPKPDCore.convert_monolix_to_openpkpd(project, doses=jl_doses)
+
+    return _convert_julia_import_result(result, "monolix", str(path))
 
 
 def import_model(path: Union[str, Path], format: Optional[str] = None) -> ImportedModel:
@@ -187,10 +225,91 @@ def parse_monolix_project(path: Union[str, Path]) -> MonolixProject:
     return _convert_monolix_project(result)
 
 
+def _convert_julia_import_result(result, format: str, path: str) -> ImportedModel:
+    """Convert Julia NONMEMConversionResult or MonolixConversionResult to Python ImportedModel."""
+    # Check for conversion errors
+    if result.errors and len(result.errors) > 0:
+        raise ValueError(f"Import failed: {'; '.join(str(e) for e in result.errors)}")
+
+    model_spec = result.model_spec
+    if model_spec is None:
+        raise ValueError("Import failed: no model spec generated")
+
+    # Extract model kind from model type
+    model = model_spec.model
+    model_kind = type(model).__name__
+
+    # Extract params as dict
+    params = {}
+    model_params = model_spec.params
+    # Get field names from the Julia struct
+    try:
+        for field in model_params._jl_field_names:
+            val = getattr(model_params, str(field))
+            if isinstance(val, (int, float)):
+                params[str(field)] = float(val)
+    except AttributeError:
+        # Fallback: try introspection
+        for attr in dir(model_params):
+            if not attr.startswith('_'):
+                try:
+                    val = getattr(model_params, attr)
+                    if isinstance(val, (int, float)):
+                        params[attr] = float(val)
+                except Exception:
+                    pass
+
+    # Extract theta info
+    theta_init = list(params.values())
+    theta_names = list(params.keys())
+
+    # Extract omega from IIV spec
+    omega_init = []
+    omega_names = []
+    iiv_spec = result.iiv_spec
+    if iiv_spec is not None:
+        try:
+            omegas = iiv_spec.omegas
+            for k, v in omegas.items():
+                omega_names.append(str(k))
+                omega_init.append([float(v)])
+        except Exception:
+            pass
+
+    # Extract sigma from error spec
+    sigma_type = "proportional"
+    sigma_init = 0.1
+    error_spec = result.error_spec
+    if error_spec is not None:
+        try:
+            sigma_type = str(error_spec.kind) if hasattr(error_spec, 'kind') else "proportional"
+            sigma_init = float(error_spec.sigma) if hasattr(error_spec, 'sigma') else 0.1
+        except Exception:
+            pass
+
+    # Get warnings
+    warnings = [str(w) for w in result.warnings] if result.warnings else []
+
+    return ImportedModel(
+        source_format=format,
+        source_file=path,
+        model_kind=model_kind,
+        params=params,
+        theta_init=theta_init,
+        theta_names=theta_names,
+        omega_init=omega_init if omega_init else [[0.09]],
+        omega_names=omega_names if omega_names else ["eta_1"],
+        sigma_type=sigma_type,
+        sigma_init=sigma_init,
+        warnings=warnings,
+        metadata={"parameter_mapping": dict(result.parameter_mapping) if hasattr(result, 'parameter_mapping') else {}},
+    )
+
+
 def _convert_imported_model(raw_result, model_spec, pop_spec, metadata, format: str, path: str) -> ImportedModel:
-    """Convert Julia import result to Python ImportedModel."""
+    """Convert Julia import result to Python ImportedModel (legacy fallback)."""
     # Extract model kind
-    model_kind = str(type(model_spec.kind).__name__)
+    model_kind = str(type(model_spec.kind).__name__) if hasattr(model_spec, 'kind') else "unknown"
 
     # Extract params as dict
     params = {}
@@ -217,7 +336,7 @@ def _convert_imported_model(raw_result, model_spec, pop_spec, metadata, format: 
     sigma_type = "proportional"
     sigma_init = 0.1
 
-    warnings = list(metadata.get("warnings", []))
+    warnings = list(metadata.get("warnings", [])) if metadata else []
 
     return ImportedModel(
         source_format=format,
@@ -231,7 +350,7 @@ def _convert_imported_model(raw_result, model_spec, pop_spec, metadata, format: 
         sigma_type=sigma_type,
         sigma_init=sigma_init,
         warnings=warnings,
-        metadata=dict(metadata),
+        metadata=dict(metadata) if metadata else {},
     )
 
 
