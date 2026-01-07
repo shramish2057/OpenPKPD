@@ -421,6 +421,431 @@ struct IndirectResponseTurnoverParams
     IC50::Float64
 end
 
+# Alias for backward compatibility (IRM-III is inhibition of Kout)
+const IndirectResponseIRM3 = IndirectResponseTurnover
+const IndirectResponseIRM3Params = IndirectResponseTurnoverParams
+
+export IndirectResponseIRM1, IndirectResponseIRM1Params
+export IndirectResponseIRM2, IndirectResponseIRM2Params
+export IndirectResponseIRM3, IndirectResponseIRM3Params
+export IndirectResponseIRM4, IndirectResponseIRM4Params
+
+"""
+Indirect response model type I: Inhibition of Kin (production).
+
+States:
+- R(t): response
+
+Dynamics:
+dR/dt = Kin × (1 - I(C)) - Kout × R
+
+where I(C) = (Imax × C) / (IC50 + C)
+
+Effect: Drug inhibits production → Response decreases below baseline.
+
+Clinical Applications:
+- Corticosteroids on cortisol production
+- Statins on cholesterol synthesis
+- Immunosuppressants on cytokine production
+"""
+struct IndirectResponseIRM1 <: PDModelKind end
+
+struct IndirectResponseIRM1Params
+    Kin::Float64      # Zero-order production rate
+    Kout::Float64     # First-order elimination rate constant
+    R0::Float64       # Baseline response (= Kin/Kout at steady state)
+    Imax::Float64     # Maximum inhibition [0, 1]
+    IC50::Float64     # Concentration at 50% inhibition
+end
+
+"""
+Indirect response model type II: Stimulation of Kin (production).
+
+States:
+- R(t): response
+
+Dynamics:
+dR/dt = Kin × (1 + S(C)) - Kout × R
+
+where S(C) = (Smax × C) / (SC50 + C)
+
+Effect: Drug stimulates production → Response increases above baseline.
+
+Clinical Applications:
+- EPO on red blood cell production
+- G-CSF on neutrophil production
+- Growth factors on tissue growth
+"""
+struct IndirectResponseIRM2 <: PDModelKind end
+
+struct IndirectResponseIRM2Params
+    Kin::Float64      # Zero-order production rate
+    Kout::Float64     # First-order elimination rate constant
+    R0::Float64       # Baseline response (= Kin/Kout at steady state)
+    Smax::Float64     # Maximum stimulation (can exceed 1)
+    SC50::Float64     # Concentration at 50% stimulation
+end
+
+"""
+Indirect response model type IV: Stimulation of Kout (elimination).
+
+States:
+- R(t): response
+
+Dynamics:
+dR/dt = Kin - Kout × (1 + S(C)) × R
+
+where S(C) = (Smax × C) / (SC50 + C)
+
+Effect: Drug stimulates elimination → Response decreases below baseline.
+
+Clinical Applications:
+- Diuretics on sodium excretion
+- Thyroid hormone on metabolic rate
+- Laxatives on bowel motility
+"""
+struct IndirectResponseIRM4 <: PDModelKind end
+
+struct IndirectResponseIRM4Params
+    Kin::Float64      # Zero-order production rate
+    Kout::Float64     # First-order elimination rate constant
+    R0::Float64       # Baseline response (= Kin/Kout at steady state)
+    Smax::Float64     # Maximum stimulation (can exceed 1)
+    SC50::Float64     # Concentration at 50% stimulation
+end
+
+# -------------------------
+# Transit Compartment PD
+# -------------------------
+
+export TransitCompartmentPD, TransitCompartmentPDParams
+
+"""
+Transit compartment PD model for signal transduction delays.
+
+Implements a chain of transit compartments to model delayed drug effects.
+
+States:
+- A1, A2, ..., AN: Transit compartment amounts
+- Effect = AN (final transit compartment)
+
+Signal generation:
+- Signal(C) = E0 + Emax × C^γ / (EC50^γ + C^γ)
+
+Transit dynamics (N compartments):
+- dA1/dt = ktr × (Signal(C) - A1)
+- dAi/dt = ktr × (A(i-1) - Ai)  for i = 2..N
+- Effect = AN
+
+Mean transit time (MTT):
+- MTT = (N + 1) / ktr
+
+Clinical Applications:
+- Delayed myelosuppression (neutropenia, thrombocytopenia)
+- Delayed biomarker responses
+- Signal transduction cascades
+"""
+struct TransitCompartmentPD <: PDModelKind end
+
+struct TransitCompartmentPDParams
+    N::Int              # Number of transit compartments (1-20 typical)
+    ktr::Float64        # Transit rate constant (1/time)
+    E0::Float64         # Baseline effect/signal
+    Emax::Float64       # Maximum effect above baseline
+    EC50::Float64       # Concentration at 50% of maximum effect
+    gamma::Float64      # Hill coefficient (steepness)
+end
+
+# -------------------------
+# Disease Progression PD
+# -------------------------
+
+export DiseaseProgressionPD, DiseaseProgressionPDParams
+export GrowthModelType, LinearGrowth, AsymptoticGrowth, GompertzGrowth, LogisticGrowth, ExponentialGrowth
+
+"""
+Growth model types for disease progression.
+"""
+@enum GrowthModelType begin
+    LinearGrowth        # dS/dt = alpha
+    AsymptoticGrowth    # dS/dt = kgrow * (Smax - S)
+    GompertzGrowth      # dS/dt = kgrow * S * log(Smax / S)
+    LogisticGrowth      # dS/dt = kgrow * S * (1 - S/Smax)
+    ExponentialGrowth   # dS/dt = kgrow * S
+end
+
+"""
+Disease progression PD model with tumor growth dynamics.
+
+Implements various growth models commonly used in oncology:
+- Linear: dS/dt = alpha - Drug_effect
+- Asymptotic: dS/dt = kgrow × (Smax - S) - Drug_effect
+- Gompertz: dS/dt = kgrow × S × log(Smax/S) - Drug_effect
+- Logistic: dS/dt = kgrow × S × (1 - S/Smax) - Drug_effect
+- Exponential: dS/dt = kgrow × S - Drug_effect
+
+Drug effect:
+- Drug_effect = kdrug × C × S  (cytotoxic, cell-kill)
+
+where:
+- S: Tumor size/volume
+- C: Drug concentration
+- kgrow: Growth rate constant
+- Smax: Maximum tumor size (carrying capacity)
+- alpha: Linear growth rate
+- kdrug: Drug-induced cell kill rate constant
+
+Clinical Applications:
+- Tumor growth modeling
+- Oncology dose-response
+- Survival analysis
+"""
+struct DiseaseProgressionPD <: PDModelKind
+    growth_model::GrowthModelType
+end
+
+struct DiseaseProgressionPDParams
+    S0::Float64         # Initial tumor size
+    kgrow::Float64      # Growth rate constant
+    Smax::Float64       # Maximum size (carrying capacity, for bounded models)
+    alpha::Float64      # Linear growth rate (for LinearGrowth only)
+    kdrug::Float64      # Drug-induced cell kill rate constant
+end
+
+# -------------------------
+# Combination Effect Models
+# -------------------------
+
+export BlissIndependence, BlissIndependenceParams
+export CompetitiveInhibition, CompetitiveInhibitionParams
+export DrugInteraction, DrugInteractionParams
+
+"""
+Bliss Independence combination effect model.
+
+Models the combined effect of two drugs assuming independent action.
+Used when drugs act on independent pathways.
+
+Combined Effect:
+E_combined = E_A + E_B - E_A × E_B
+
+For fractional effects (0 to 1):
+- If E_A = 0.5 and E_B = 0.5: E_combined = 0.75
+- Represents probability of effect if mechanisms are independent
+
+Individual drug effects use sigmoid Emax:
+E_A = Emax_A × C_A^γ_A / (EC50_A^γ_A + C_A^γ_A)
+E_B = Emax_B × C_B^γ_B / (EC50_B^γ_B + C_B^γ_B)
+
+Parameters:
+- E0: Baseline effect (no drug)
+- Emax_A, EC50_A, gamma_A: Drug A dose-response parameters
+- Emax_B, EC50_B, gamma_B: Drug B dose-response parameters
+- input_A, input_B: Observation keys for drug concentrations
+
+Clinical Applications:
+- Combination chemotherapy
+- Antibacterial combinations
+- Multi-target therapies
+"""
+struct BlissIndependence <: PDModelKind end
+
+struct BlissIndependenceParams
+    E0::Float64           # Baseline effect
+    Emax_A::Float64       # Maximum effect for drug A
+    EC50_A::Float64       # EC50 for drug A
+    gamma_A::Float64      # Hill coefficient for drug A
+    Emax_B::Float64       # Maximum effect for drug B
+    EC50_B::Float64       # EC50 for drug B
+    gamma_B::Float64      # Hill coefficient for drug B
+    input_A::Symbol       # Observation key for drug A concentration
+    input_B::Symbol       # Observation key for drug B concentration
+end
+
+"""
+Competitive inhibition PD model.
+
+Models the effect of a competitive inhibitor on drug action.
+The inhibitor competes for the same binding site, shifting the EC50.
+
+Effect equation:
+E = E0 + Emax × C^γ / ((EC50 × (1 + I/Ki))^γ + C^γ)
+
+where:
+- C: Drug (agonist) concentration
+- I: Inhibitor concentration
+- Ki: Inhibitor binding constant
+- EC50_apparent = EC50 × (1 + I/Ki)
+
+Parameters:
+- E0: Baseline effect
+- Emax: Maximum effect
+- EC50: Intrinsic EC50 (without inhibitor)
+- gamma: Hill coefficient
+- Ki: Inhibitor binding constant
+- input_drug: Observation key for drug concentration
+- input_inhibitor: Observation key for inhibitor concentration
+
+Clinical Applications:
+- Drug-drug interactions
+- Receptor antagonism
+- Enzyme inhibition
+"""
+struct CompetitiveInhibition <: PDModelKind end
+
+struct CompetitiveInhibitionParams
+    E0::Float64              # Baseline effect
+    Emax::Float64            # Maximum effect
+    EC50::Float64            # Intrinsic EC50 (without inhibitor)
+    gamma::Float64           # Hill coefficient
+    Ki::Float64              # Inhibitor binding constant
+    input_drug::Symbol       # Observation key for drug concentration
+    input_inhibitor::Symbol  # Observation key for inhibitor concentration
+end
+
+"""
+Drug interaction model (Greco model) for synergy/antagonism.
+
+Models combined drug effects with an interaction parameter (ψ) that
+quantifies synergy or antagonism.
+
+Greco Equation:
+(C_A/EC50_A)^γ + (C_B/EC50_B)^γ + ψ×(C_A/EC50_A)×(C_B/EC50_B) = E/(Emax-E)
+
+Simplified for symmetric case (γ=1):
+E = Emax × (C_A/EC50_A + C_B/EC50_B + ψ×C_A×C_B/(EC50_A×EC50_B)) /
+    (1 + C_A/EC50_A + C_B/EC50_B + ψ×C_A×C_B/(EC50_A×EC50_B))
+
+Interaction parameter ψ:
+- ψ > 0: Synergy (greater than additive effect)
+- ψ = 0: Additivity (Loewe additivity)
+- ψ < 0: Antagonism (less than additive effect)
+
+Parameters:
+- E0: Baseline effect
+- Emax: Maximum combined effect
+- EC50_A: EC50 for drug A alone
+- EC50_B: EC50 for drug B alone
+- psi: Interaction parameter (synergy/antagonism)
+- input_A, input_B: Observation keys for drug concentrations
+
+Clinical Applications:
+- Synergy detection in combination therapy
+- Drug interaction studies
+- Isobologram analysis
+"""
+struct DrugInteraction <: PDModelKind end
+
+struct DrugInteractionParams
+    E0::Float64           # Baseline effect
+    Emax::Float64         # Maximum combined effect
+    EC50_A::Float64       # EC50 for drug A
+    EC50_B::Float64       # EC50 for drug B
+    psi::Float64          # Interaction parameter (synergy: >0, antagonism: <0)
+    input_A::Symbol       # Observation key for drug A concentration
+    input_B::Symbol       # Observation key for drug B concentration
+end
+
+# -------------------------
+# Tolerance/Sensitization Models
+# -------------------------
+
+export ToleranceCounterRegulation, ToleranceCounterRegulationParams
+export ReceptorRegulation, ReceptorRegulationParams
+
+"""
+Tolerance model with counter-regulatory feedback.
+
+Models the development of tolerance through a feedback mechanism that
+opposes the drug effect over time.
+
+States:
+- M: Moderator/feedback variable (0 at baseline, increases with drug effect)
+
+Dynamics:
+- dM/dt = kin_mod × E_drug - kout_mod × M
+
+Drug effect (before moderation):
+- E_drug = Emax × C^γ / (EC50^γ + C^γ)
+
+Net effect (with tolerance):
+- E_net = E0 + E_drug - alpha × M
+
+Parameters:
+- E0: Baseline effect (no drug)
+- Emax: Maximum drug effect
+- EC50: Concentration at 50% of maximum effect
+- gamma: Hill coefficient
+- kin_mod: Rate of moderator production (driven by drug effect)
+- kout_mod: Rate of moderator elimination
+- alpha: Moderator effect on response (feedback strength)
+
+Clinical Applications:
+- Opioid tolerance development
+- Beta-blocker tolerance
+- Benzodiazepine adaptation
+"""
+struct ToleranceCounterRegulation <: PDModelKind end
+
+struct ToleranceCounterRegulationParams
+    E0::Float64       # Baseline effect
+    Emax::Float64     # Maximum drug effect
+    EC50::Float64     # EC50 for drug effect
+    gamma::Float64    # Hill coefficient
+    kin_mod::Float64  # Moderator production rate constant
+    kout_mod::Float64 # Moderator elimination rate constant
+    alpha::Float64    # Feedback strength (moderator effect coefficient)
+end
+
+"""
+Receptor regulation (up/down-regulation) tolerance model.
+
+Models tolerance through changes in receptor density in response to
+sustained drug exposure.
+
+States:
+- R: Receptor density (normalized, baseline = 1.0)
+
+Dynamics:
+- dR/dt = kreg × (R_baseline - R) + regulation_effect
+
+Regulation effect (drug-induced change):
+- Down-regulation: regulation_effect = -kdown × E_drug × R
+- Up-regulation: regulation_effect = +kup × E_drug × (Rmax - R)
+
+Net effect:
+- E_net = E0 + R × E_drug  (receptor amplifies/attenuates drug effect)
+
+Parameters:
+- E0: Baseline effect
+- Emax: Maximum drug effect on receptors
+- EC50: EC50 for drug effect
+- gamma: Hill coefficient
+- R_baseline: Baseline receptor density (normalized, typically 1.0)
+- kreg: Receptor return-to-baseline rate constant
+- Rmax: Maximum receptor density (for up-regulation, typically > R_baseline)
+- kchange: Rate of receptor change (kdown for down-regulation, kup for up-regulation)
+- direction: :down for down-regulation, :up for up-regulation
+
+Clinical Applications:
+- Beta-receptor down-regulation with chronic agonist exposure
+- Opioid receptor adaptation
+- Hormone receptor regulation
+"""
+struct ReceptorRegulation <: PDModelKind end
+
+struct ReceptorRegulationParams
+    E0::Float64           # Baseline effect
+    Emax::Float64         # Maximum drug effect
+    EC50::Float64         # EC50 for drug effect
+    gamma::Float64        # Hill coefficient
+    R_baseline::Float64   # Baseline receptor density (normalized, typically 1.0)
+    kreg::Float64         # Rate of return to baseline
+    Rmax::Float64         # Maximum receptor density (for up-regulation)
+    kchange::Float64      # Rate of receptor change (down or up)
+    direction::Symbol     # :down or :up
+end
+
 """
 PD specification container.
 

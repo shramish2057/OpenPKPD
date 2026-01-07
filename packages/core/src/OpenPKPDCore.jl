@@ -33,9 +33,20 @@ include("models/custom.jl")
 # ------------------------------------------------------------------
 # PD model definitions
 # ------------------------------------------------------------------
+include("pd/pd_helpers.jl")
 include("pd/direct_emax.jl")
 include("pd/sigmoid_emax.jl")
 include("pd/indirect_response_turnover.jl")
+include("pd/indirect_response_irm1.jl")
+include("pd/indirect_response_irm2.jl")
+include("pd/indirect_response_irm4.jl")
+include("pd/transit_compartment_pd.jl")
+include("pd/disease_progression.jl")
+include("pd/bliss_independence.jl")
+include("pd/competitive_inhibition.jl")
+include("pd/drug_interaction.jl")
+include("pd/tolerance_counter_regulation.jl")
+include("pd/receptor_regulation.jl")
 include("pd/biophase_equilibration.jl")
 
 # ------------------------------------------------------------------
