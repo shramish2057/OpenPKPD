@@ -7,6 +7,8 @@ export EstimationMethod, FOCEIMethod, SAEMMethod, LaplacianMethod
 export EstimationConfig, IndividualEstimate, EstimationResult
 export OmegaStructure, DiagonalOmega, BlockOmega
 export CovariateOnIIV, EstimationIOVSpec, OccasionData
+export EstimationBLQMethod, BLQ_M1_DISCARD, BLQ_M2_IMPUTE_HALF, BLQ_M2_IMPUTE_ZERO, BLQ_M3_LIKELIHOOD
+export BLQConfig, BLQSummary
 
 # ------------------------------------------------------------------
 # Estimation Methods
@@ -240,6 +242,86 @@ struct OccasionData
 end
 
 # ------------------------------------------------------------------
+# BLQ/Censoring Handling
+# ------------------------------------------------------------------
+
+"""
+Method for handling Below Limit of Quantification (BLQ) observations in estimation.
+
+Following FDA/EMA guidelines and NONMEM conventions:
+- M1: Discard all BLQ observations (simplest, may bias)
+- M2: Impute BLQ with LLOQ/2 or 0 (legacy, simple)
+- M3: Censored likelihood P(Y < LLOQ) (gold standard)
+
+Note: This is distinct from BLQMethod in vpc.jl which is used for VPC analysis.
+"""
+@enum EstimationBLQMethod begin
+    BLQ_M1_DISCARD      # Discard all BLQ observations
+    BLQ_M2_IMPUTE_HALF  # Replace BLQ with LLOQ/2
+    BLQ_M2_IMPUTE_ZERO  # Replace BLQ with 0
+    BLQ_M3_LIKELIHOOD   # Censored likelihood (gold standard)
+end
+
+"""
+Configuration for BLQ/censoring handling in estimation.
+
+# Fields
+- `method`: BLQ handling method (M1, M2, or M3)
+- `lloq`: Global lower limit of quantification (can be overridden per subject)
+- `max_consecutive_blq`: Maximum consecutive BLQ before warning (default: 5)
+- `report_blq_summary`: Include BLQ summary in results (default: true)
+
+# Example
+```julia
+# Use M3 censored likelihood (recommended)
+blq_config = BLQConfig(BLQ_M3_LIKELIHOOD, 0.5)
+
+# Use M1 to discard BLQ observations
+blq_config = BLQConfig(BLQ_M1_DISCARD, 0.5)
+```
+"""
+struct BLQConfig
+    method::EstimationBLQMethod
+    lloq::Float64
+    max_consecutive_blq::Int
+    report_blq_summary::Bool
+
+    function BLQConfig(
+        method::EstimationBLQMethod=BLQ_M3_LIKELIHOOD,
+        lloq::Float64=0.0;
+        max_consecutive_blq::Int=5,
+        report_blq_summary::Bool=true
+    )
+        @assert lloq >= 0.0 "LLOQ must be non-negative"
+        @assert max_consecutive_blq >= 1 "max_consecutive_blq must be positive"
+        new(method, lloq, max_consecutive_blq, report_blq_summary)
+    end
+end
+
+# Convenience constructors
+BLQConfig(lloq::Float64) = BLQConfig(BLQ_M3_LIKELIHOOD, lloq)
+
+"""
+Summary of BLQ observations in estimation.
+
+# Fields
+- `total_observations`: Total number of observations
+- `blq_observations`: Number of BLQ observations
+- `blq_percentage`: Percentage of BLQ observations
+- `blq_by_subject`: Number of BLQ observations per subject
+- `method_used`: BLQ method that was used
+- `warnings`: Any BLQ-related warnings
+"""
+struct BLQSummary
+    total_observations::Int
+    blq_observations::Int
+    blq_percentage::Float64
+    blq_by_subject::Dict{String,Int}
+    method_used::EstimationBLQMethod
+    warnings::Vector{String}
+end
+
+# ------------------------------------------------------------------
 # Estimation Configuration
 # ------------------------------------------------------------------
 
@@ -265,6 +347,9 @@ Fields:
 - seed: Random seed for reproducibility
 - covariate_on_iiv: Covariate effects on IIV (optional)
 - iov_specs: Inter-occasion variability specifications (optional)
+- variance_log_lower: Lower bound for log-scale variance parameters (default: -10.0)
+- variance_log_upper: Upper bound for log-scale variance parameters (default: 5.0)
+- blq_config: BLQ/censoring handling configuration (optional)
 """
 struct EstimationConfig{M<:EstimationMethod}
     method::M
@@ -285,6 +370,9 @@ struct EstimationConfig{M<:EstimationMethod}
     seed::UInt64
     covariate_on_iiv::Vector{CovariateOnIIV}
     iov_specs::Vector{EstimationIOVSpec}
+    variance_log_lower::Float64
+    variance_log_upper::Float64
+    blq_config::Union{Nothing,BLQConfig}
 
     function EstimationConfig(
         method::M;
@@ -304,7 +392,10 @@ struct EstimationConfig{M<:EstimationMethod}
         verbose::Bool=false,
         seed::UInt64=UInt64(12345),
         covariate_on_iiv::Vector{CovariateOnIIV}=CovariateOnIIV[],
-        iov_specs::Vector{EstimationIOVSpec}=EstimationIOVSpec[]
+        iov_specs::Vector{EstimationIOVSpec}=EstimationIOVSpec[],
+        variance_log_lower::Float64=-10.0,
+        variance_log_upper::Float64=5.0,
+        blq_config::Union{Nothing,BLQConfig}=nothing
     ) where {M<:EstimationMethod}
         n_theta = length(theta_init)
         n_eta = size(omega_init, 1)
@@ -329,7 +420,8 @@ struct EstimationConfig{M<:EstimationMethod}
             method, theta_init, theta_lower, theta_upper, theta_names,
             omega_init, omega_structure, omega_names, sigma_init,
             max_iter, tol, compute_se, compute_ci, ci_level, verbose, seed,
-            covariate_on_iiv, iov_specs
+            covariate_on_iiv, iov_specs, variance_log_lower, variance_log_upper,
+            blq_config
         )
     end
 end
@@ -396,6 +488,7 @@ Fields:
 - covariance_step_successful: Did SE computation succeed?
 - messages: Any warnings or messages
 - runtime_seconds: Total runtime
+- blq_summary: Summary of BLQ observations (if BLQ handling enabled)
 """
 struct EstimationResult{M<:EstimationMethod}
     config::EstimationConfig{M}
@@ -436,6 +529,9 @@ struct EstimationResult{M<:EstimationMethod}
     # Messages and runtime
     messages::Vector{String}
     runtime_seconds::Float64
+
+    # BLQ summary
+    blq_summary::Union{Nothing,BLQSummary}
 end
 
 # ------------------------------------------------------------------

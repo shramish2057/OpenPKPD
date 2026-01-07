@@ -212,7 +212,7 @@ function sample_demographics(spec::DemographicSpec, id::Int;
     sex = rand(rng) < spec.female_proportion ? :female : :male
     race = sample_categorical(rng, spec.race_distribution)
 
-    return VirtualSubject(id, age, weight, sex, race, nothing, nothing, Dict{Symbol, Float64}())
+    return VirtualSubject(id, age, weight, sex, race)  # Uses convenience constructor
 end
 
 
@@ -253,7 +253,8 @@ function apply_disease_characteristics(individual::VirtualSubject,
         individual.race,
         severity,
         baseline_biomarker,
-        individual.other
+        individual.other,
+        individual.eta  # Preserve eta values
     )
 end
 

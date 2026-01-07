@@ -619,16 +619,13 @@
             pk_params = OneCompOralFirstOrderParams(1.2, 5.0, 50.0)
             model_spec = ModelSpec(pk_model, "pk", pk_params, DoseEvent[])
 
-            # Create a virtual subject
+            # Create a virtual subject using convenience constructor
             subject = VirtualSubject(
                 1,      # id
                 35.0,   # age
                 70.0,   # weight
                 :male,  # sex
-                :caucasian,  # race
-                nothing,     # disease_severity
-                nothing,     # baseline_biomarker
-                Dict{Symbol, Float64}()  # other
+                :caucasian  # race
             )
 
             dose_events = [DoseEvent(0.0, 100.0)]
@@ -659,8 +656,8 @@
             dose_events = [DoseEvent(0.0, 100.0)]
             observation_times = [0.0, 1.0, 4.0, 12.0, 24.0]
 
-            # Create a subject without IIV (empty other dict)
-            subject = VirtualSubject(1, 35.0, 70.0, :male, :caucasian, nothing, nothing, Dict{Symbol, Float64}())
+            # Create a subject without IIV using convenience constructor
+            subject = VirtualSubject(1, 35.0, 70.0, :male, :caucasian)
 
             # Test with include_iiv=false (no IIV applied)
             exposure_no_iiv = simulate_subject_exposure(model_spec, subject, dose_events, observation_times;

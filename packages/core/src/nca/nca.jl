@@ -15,6 +15,7 @@ include("exposure_metrics.jl")
 include("pk_parameters.jl")
 include("multiple_dose.jl")
 include("bioequivalence.jl")
+include("reference_scaled_be.jl")
 
 # =============================================================================
 # Main NCA Entry Point

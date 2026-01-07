@@ -34,6 +34,15 @@ function laplacian_estimate(
 
     subjects = extract_subject_data(observed)
 
+    # Extract BLQ information for each subject
+    blq_config = config.blq_config
+    subject_blq_flags = Vector{Vector{Bool}}(undef, n_subj)
+    subject_lloq = Vector{Float64}(undef, n_subj)
+    for (i, s) in enumerate(observed.subjects)
+        subject_blq_flags[i] = get_blq_flags_for_subject(s, blq_config)
+        subject_lloq[i] = get_lloq_for_subject(s, blq_config)
+    end
+
     # Pack parameters for optimization: [theta; omega_chol_diag; sigma_params]
     # For simplicity, we'll optimize theta and omega diagonal, fix sigma initially
 
@@ -55,19 +64,21 @@ function laplacian_estimate(
     for iter in 1:config.max_iter
         n_iter = iter
 
-        # E-step: Find mode of posterior for each subject's eta
+        # E-step: Find mode of posterior for each subject's eta (with BLQ support)
         for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
             eta_per_subject[i] = find_eta_mode_laplacian(
                 theta_current, omega_current, sigma_current,
                 times, obs, doses, model_spec, grid, solver,
-                eta_per_subject[i], config.method.max_inner_iter, config.method.inner_tol
+                eta_per_subject[i], config.method.max_inner_iter, config.method.inner_tol;
+                blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
             )
         end
 
-        # M-step: Update theta and omega given eta modes
+        # M-step: Update theta and omega given eta modes (with BLQ support)
         theta_new, omega_new, ofv = m_step_laplacian(
             theta_current, omega_current, sigma_current,
-            eta_per_subject, subjects, model_spec, grid, solver, config
+            eta_per_subject, subjects, model_spec, grid, solver, config;
+            blq_config=blq_config, subject_blq_flags=subject_blq_flags, subject_lloq=subject_lloq
         )
 
         push!(ofv_history, ofv)
@@ -91,16 +102,18 @@ function laplacian_estimate(
         omega_current = omega_new
     end
 
-    # Final OFV computation
+    # Final OFV computation with BLQ support
     final_ofv = compute_laplacian_ofv(
         theta_current, omega_current, sigma_current,
-        eta_per_subject, subjects, model_spec, grid, solver
+        eta_per_subject, subjects, model_spec, grid, solver;
+        blq_config=blq_config, subject_blq_flags=subject_blq_flags, subject_lloq=subject_lloq
     )
 
-    # Compute individual estimates
+    # Compute individual estimates with BLQ support
     individual_estimates = compute_individual_estimates_laplacian(
         theta_current, omega_current, sigma_current,
-        eta_per_subject, subjects, model_spec, grid, solver
+        eta_per_subject, subjects, model_spec, grid, solver;
+        blq_config=blq_config, subject_blq_flags=subject_blq_flags, subject_lloq=subject_lloq
     )
 
     # Compute standard errors if requested
@@ -116,7 +129,8 @@ function laplacian_estimate(
         theta_se, omega_se, sigma_se, covariance_successful, condition_num, eigenvalue_ratio =
             compute_standard_errors_laplacian(
                 theta_current, omega_current, sigma_current,
-                eta_per_subject, subjects, model_spec, grid, solver, config
+                eta_per_subject, subjects, model_spec, grid, solver, config;
+                blq_config=blq_config, subject_blq_flags=subject_blq_flags, subject_lloq=subject_lloq
             )
         if theta_se !== nothing
             theta_rse = 100.0 .* abs.(theta_se ./ theta_current)
@@ -143,6 +157,19 @@ function laplacian_estimate(
 
     elapsed = time() - start_time
 
+    # Build messages
+    messages = String["Laplacian estimation"]
+
+    # Compute BLQ summary if BLQ handling is enabled
+    blq_summary = nothing
+    if blq_config !== nothing && blq_config.report_blq_summary
+        blq_summary = compute_blq_summary(observed, blq_config)
+        push!(messages, "BLQ handling: $(blq_config.method) with $(blq_summary.blq_observations)/$(blq_summary.total_observations) BLQ observations ($(round(blq_summary.blq_percentage, digits=1))%)")
+        for warning in blq_summary.warnings
+            push!(messages, "BLQ Warning: $warning")
+        end
+    end
+
     return EstimationResult(
         config,
         theta_current, theta_se, nothing,  # theta_se_robust = nothing for Laplacian
@@ -153,13 +180,15 @@ function laplacian_estimate(
         individual_estimates,
         converged, n_iter, final_gradient_norm, condition_num, eigenvalue_ratio,
         covariance_successful,
-        String["Laplacian estimation"],
-        elapsed
+        messages,
+        elapsed,
+        blq_summary
     )
 end
 
 """
 Find the mode of the posterior for eta given current parameters.
+Supports BLQ/censoring handling via optional parameters.
 """
 function find_eta_mode_laplacian(
     theta::Vector{Float64},
@@ -173,10 +202,16 @@ function find_eta_mode_laplacian(
     solver::SolverSpec,
     eta_init::Vector{Float64},
     max_iter::Int,
-    tol::Float64
+    tol::Float64;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    blq_flags::Vector{Bool}=Bool[],
+    lloq::Float64=0.0
 )::Vector{Float64}
     n_eta = length(eta_init)
     omega_inv = inv(omega)
+
+    # Check if BLQ handling is enabled
+    has_blq = blq_config !== nothing && !isempty(blq_flags)
 
     # Objective function: -2 * log(p(eta|y,theta))
     # = -2LL(y|theta,eta) + eta' * omega_inv * eta + log(det(omega)) + const
@@ -192,7 +227,14 @@ function find_eta_mode_laplacian(
 
             ll_contrib = 0.0
             for (i, (y, f)) in enumerate(zip(obs, ipred))
-                ll_contrib += observation_log_likelihood(y, f, sigma)
+                # Check if this observation is BLQ
+                is_blq = has_blq && i <= length(blq_flags) && blq_flags[i]
+
+                if is_blq && blq_config !== nothing
+                    ll_contrib += observation_log_likelihood_blq(y, f, sigma, blq_config, true, lloq)
+                else
+                    ll_contrib += observation_log_likelihood(y, f, sigma)
+                end
             end
 
             return ll_contrib + prior_contrib
@@ -202,19 +244,26 @@ function find_eta_mode_laplacian(
         end
     end
 
-    # Optimize using BFGS
-    result = optimize(
+    # Optimize using fallback optimizer chain (BFGS -> L-BFGS -> Nelder-Mead)
+    opt_config = OptimizerConfig(
+        max_attempts_per_optimizer=1,  # Keep inner optimization fast
+        verbose=false
+    )
+    opt_options = Optim.Options(iterations=max_iter, g_tol=tol, show_trace=false)
+
+    opt_result = optimize_with_fallback(
         eta_objective,
         eta_init,
-        BFGS(linesearch=LineSearches.BackTracking()),
-        Optim.Options(iterations=max_iter, g_tol=tol, show_trace=false)
+        opt_config;
+        options=opt_options
     )
 
-    return Optim.minimizer(result)
+    return opt_result.minimizer
 end
 
 """
 M-step: Update theta and omega given eta modes.
+Supports BLQ/censoring handling via optional parameters.
 """
 function m_step_laplacian(
     theta_current::Vector{Float64},
@@ -225,7 +274,10 @@ function m_step_laplacian(
     model_spec::ModelSpec,
     grid::SimGrid,
     solver::SolverSpec,
-    config::EstimationConfig
+    config::EstimationConfig;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    subject_blq_flags::Vector{Vector{Bool}}=Vector{Vector{Bool}}(),
+    subject_lloq::Vector{Float64}=Float64[]
 )::Tuple{Vector{Float64},Matrix{Float64},Float64}
     n_subj = length(subjects)
     n_eta = size(omega_current, 1)
@@ -241,6 +293,9 @@ function m_step_laplacian(
     if config.omega_structure isa DiagonalOmega
         omega_new = Diagonal(diag(omega_new)) |> Matrix
     end
+
+    # Check if BLQ handling is enabled
+    has_blq = blq_config !== nothing && !isempty(subject_blq_flags)
 
     # Update theta: minimize objective given fixed etas
     function theta_objective(theta)
@@ -258,13 +313,24 @@ function m_step_laplacian(
             # Prior contribution
             ofv += eta' * omega_inv * eta
 
+            # Get BLQ info for this subject
+            blq_flags = has_blq && i <= length(subject_blq_flags) ? subject_blq_flags[i] : Bool[]
+            lloq = has_blq && i <= length(subject_lloq) ? subject_lloq[i] : 0.0
+            subj_has_blq = has_blq && !isempty(blq_flags)
+
             # Likelihood contribution
             ipred = compute_individual_predictions(
                 theta, eta, times, doses, model_spec, grid, solver
             )
 
-            for (y, f) in zip(obs, ipred)
-                ofv += observation_log_likelihood(y, f, sigma)
+            for (j, (y, f)) in enumerate(zip(obs, ipred))
+                is_blq = subj_has_blq && j <= length(blq_flags) && blq_flags[j]
+
+                if is_blq && blq_config !== nothing
+                    ofv += observation_log_likelihood_blq(y, f, sigma, blq_config, true, lloq)
+                else
+                    ofv += observation_log_likelihood(y, f, sigma)
+                end
             end
         end
 
@@ -274,24 +340,28 @@ function m_step_laplacian(
         return ofv
     end
 
-    # Optimize theta
-    result = optimize(
+    # Optimize theta with fallback optimizer
+    opt_config = OptimizerConfig(verbose=false)
+    opt_options = Optim.Options(iterations=100, g_tol=1e-5, show_trace=false)
+
+    opt_result = optimize_bounded_with_fallback(
         theta_objective,
         config.theta_lower,
         config.theta_upper,
         theta_current,
-        Fminbox(BFGS(linesearch=LineSearches.BackTracking())),
-        Optim.Options(iterations=100, g_tol=1e-5, show_trace=false)
+        opt_config;
+        options=opt_options
     )
 
-    theta_new = Optim.minimizer(result)
-    final_ofv = Optim.minimum(result)
+    theta_new = opt_result.minimizer
+    final_ofv = opt_result.minimum
 
     return theta_new, omega_new, final_ofv
 end
 
 """
 Compute Laplacian objective function value.
+Supports BLQ/censoring handling via optional parameters.
 """
 function compute_laplacian_ofv(
     theta::Vector{Float64},
@@ -301,11 +371,17 @@ function compute_laplacian_ofv(
     subjects::Vector,
     model_spec::ModelSpec,
     grid::SimGrid,
-    solver::SolverSpec
+    solver::SolverSpec;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    subject_blq_flags::Vector{Vector{Bool}}=Vector{Vector{Bool}}(),
+    subject_lloq::Vector{Float64}=Float64[]
 )::Float64
     n_subj = length(subjects)
     omega_inv = inv(omega)
     ofv = 0.0
+
+    # Check if BLQ handling is enabled
+    has_blq = blq_config !== nothing && !isempty(subject_blq_flags)
 
     for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
         eta = etas[i]
@@ -313,13 +389,24 @@ function compute_laplacian_ofv(
         # Prior contribution
         ofv += eta' * omega_inv * eta
 
+        # Get BLQ info for this subject
+        blq_flags = has_blq && i <= length(subject_blq_flags) ? subject_blq_flags[i] : Bool[]
+        lloq = has_blq && i <= length(subject_lloq) ? subject_lloq[i] : 0.0
+        subj_has_blq = has_blq && !isempty(blq_flags)
+
         # Likelihood contribution
         ipred = compute_individual_predictions(
             theta, eta, times, doses, model_spec, grid, solver
         )
 
-        for (y, f) in zip(obs, ipred)
-            ofv += observation_log_likelihood(y, f, sigma)
+        for (j, (y, f)) in enumerate(zip(obs, ipred))
+            is_blq = subj_has_blq && j <= length(blq_flags) && blq_flags[j]
+
+            if is_blq && blq_config !== nothing
+                ofv += observation_log_likelihood_blq(y, f, sigma, blq_config, true, lloq)
+            else
+                ofv += observation_log_likelihood(y, f, sigma)
+            end
         end
     end
 
@@ -331,6 +418,7 @@ end
 
 """
 Compute individual estimates for all subjects.
+Supports BLQ/censoring handling via optional parameters.
 """
 function compute_individual_estimates_laplacian(
     theta::Vector{Float64},
@@ -340,13 +428,24 @@ function compute_individual_estimates_laplacian(
     subjects::Vector,
     model_spec::ModelSpec,
     grid::SimGrid,
-    solver::SolverSpec
+    solver::SolverSpec;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    subject_blq_flags::Vector{Vector{Bool}}=Vector{Vector{Bool}}(),
+    subject_lloq::Vector{Float64}=Float64[]
 )::Vector{IndividualEstimate}
     estimates = IndividualEstimate[]
     omega_inv = inv(omega)
 
+    # Check if BLQ handling is enabled
+    has_blq = blq_config !== nothing && !isempty(subject_blq_flags)
+
     for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
         eta = etas[i]
+
+        # Get BLQ info for this subject
+        blq_flags = has_blq && i <= length(subject_blq_flags) ? subject_blq_flags[i] : Bool[]
+        lloq = has_blq && i <= length(subject_lloq) ? subject_lloq[i] : 0.0
+        subj_has_blq = has_blq && !isempty(blq_flags)
 
         # Compute IPRED
         ipred = compute_individual_predictions(
@@ -358,15 +457,33 @@ function compute_individual_estimates_laplacian(
             theta, zeros(length(eta)), times, doses, model_spec, grid, solver
         )
 
-        # Compute residuals
+        # Compute residuals (CWRES = 0 for BLQ with M1/M3 following NONMEM convention)
         cwres = compute_cwres(obs, ipred, sigma)
         iwres = compute_iwres(obs, ipred, sigma)
         wres = compute_wres(obs, pred, sigma)
 
-        # OFV contribution
+        # Set CWRES/IWRES to 0 for BLQ observations with M1 or M3 method
+        if subj_has_blq && blq_config !== nothing
+            if blq_config.method == BLQ_M1_DISCARD || blq_config.method == BLQ_M3_LIKELIHOOD
+                for j in 1:length(blq_flags)
+                    if j <= length(cwres) && blq_flags[j]
+                        cwres[j] = 0.0
+                        iwres[j] = 0.0
+                    end
+                end
+            end
+        end
+
+        # OFV contribution with BLQ handling
         ofv_contrib = eta' * omega_inv * eta
-        for (y, f) in zip(obs, ipred)
-            ofv_contrib += observation_log_likelihood(y, f, sigma)
+        for (j, (y, f)) in enumerate(zip(obs, ipred))
+            is_blq = subj_has_blq && j <= length(blq_flags) && blq_flags[j]
+
+            if is_blq && blq_config !== nothing
+                ofv_contrib += observation_log_likelihood_blq(y, f, sigma, blq_config, true, lloq)
+            else
+                ofv_contrib += observation_log_likelihood(y, f, sigma)
+            end
         end
 
         push!(estimates, IndividualEstimate(
@@ -387,6 +504,7 @@ end
 
 """
 Compute standard errors using the observed Fisher information.
+Supports BLQ/censoring handling via optional parameters.
 """
 function compute_standard_errors_laplacian(
     theta::Vector{Float64},
@@ -397,14 +515,20 @@ function compute_standard_errors_laplacian(
     model_spec::ModelSpec,
     grid::SimGrid,
     solver::SolverSpec,
-    config::EstimationConfig
+    config::EstimationConfig;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    subject_blq_flags::Vector{Vector{Bool}}=Vector{Vector{Bool}}(),
+    subject_lloq::Vector{Float64}=Float64[]
 )
     # Compute numerical Hessian of OFV w.r.t. theta
     n_theta = length(theta)
     h = 1e-5  # Step size for finite differences
 
     function ofv_wrapper(th)
-        return compute_laplacian_ofv(th, omega, sigma, etas, subjects, model_spec, grid, solver)
+        return compute_laplacian_ofv(
+            th, omega, sigma, etas, subjects, model_spec, grid, solver;
+            blq_config=blq_config, subject_blq_flags=subject_blq_flags, subject_lloq=subject_lloq
+        )
     end
 
     # Compute Hessian using central differences

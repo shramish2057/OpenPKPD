@@ -236,22 +236,18 @@ function simulate_with_real_engine(
     n_params = get_n_params(model_spec.kind)
     eta = 0.3 .* randn(rng, n_params)  # 30% CV for IIV
 
-    # Store eta in subject's other dict for IIV application
-    subject_with_eta = if hasfield(typeof(subject), :other)
-        # Create a copy with eta
-        VirtualSubject(
-            subject.id,
-            subject.age,
-            subject.weight,
-            subject.sex,
-            subject.race,
-            subject.disease_severity,
-            subject.baseline_biomarker,
-            merge(subject.other, Dict(:eta => eta))
-        )
-    else
-        subject
-    end
+    # Store eta in subject's eta field for IIV application
+    subject_with_eta = VirtualSubject(
+        subject.id,
+        subject.age,
+        subject.weight,
+        subject.sex,
+        subject.race,
+        subject.disease_severity,
+        subject.baseline_biomarker,
+        subject.other,
+        eta  # Use dedicated eta field
+    )
 
     # Call the real simulation
     exposure = simulate_subject_exposure(

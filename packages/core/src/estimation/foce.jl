@@ -25,6 +25,14 @@ export compute_covariate_adjusted_omega, compute_iov_eta, get_n_iov_params, buil
 
 """
 Diagnostics from FOCE-I estimation for debugging and validation.
+
+# Fields
+- `eta_hessians`: Hessian matrices for each subject's eta optimization
+- `laplacian_corrections`: Laplacian correction terms for each subject
+- `likelihood_contributions`: Log-likelihood contributions per subject
+- `prior_contributions`: Prior penalty contributions per subject
+- `interaction_enabled`: Whether FOCE-I (interaction) was used
+- `cwres_fallback_subjects`: Subject IDs where CWRES fell back to IWRES due to Hessian issues
 """
 struct FOCEIDiagnostics
     eta_hessians::Vector{Matrix{Float64}}
@@ -32,6 +40,7 @@ struct FOCEIDiagnostics
     likelihood_contributions::Vector{Float64}
     prior_contributions::Vector{Float64}
     interaction_enabled::Bool
+    cwres_fallback_subjects::Vector{String}
 end
 
 # ============================================================================
@@ -446,19 +455,62 @@ end
 """
 Compute -2 log-likelihood contribution for observations.
 Includes interaction: variance depends on prediction.
+Supports BLQ/censoring handling via optional parameters.
+
+# Arguments
+- `obs`: Observed values
+- `pred`: Predicted values
+- `sigma`: Residual error specification
+- `blq_config`: BLQ configuration (optional)
+- `blq_flags`: BLQ flags for each observation (optional)
+- `lloq`: Lower limit of quantification (optional)
 """
 function compute_log_likelihood(
     obs::Vector{Float64},
     pred::AbstractVector{T},
-    sigma::ResidualErrorSpec
+    sigma::ResidualErrorSpec;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    blq_flags::Vector{Bool}=Bool[],
+    lloq::Float64=0.0
 ) where T
     ll = zero(T)
+    has_blq = blq_config !== nothing && !isempty(blq_flags)
+
     for i in eachindex(obs)
         y = obs[i]
         f = pred[i]
 
         if !isfinite(f) || f <= 0
             return T(Inf)
+        end
+
+        # Check if this observation is BLQ
+        is_blq = has_blq && i <= length(blq_flags) && blq_flags[i]
+
+        if is_blq
+            # Handle BLQ observation based on method
+            if blq_config.method == BLQ_M1_DISCARD
+                # M1: No contribution to likelihood
+                continue
+            elseif blq_config.method == BLQ_M2_IMPUTE_HALF
+                # M2a: Impute with LLOQ/2
+                y = T(lloq / 2.0)
+            elseif blq_config.method == BLQ_M2_IMPUTE_ZERO
+                # M2b: Impute with 0
+                y = zero(T)
+            elseif blq_config.method == BLQ_M3_LIKELIHOOD
+                # M3: Censored likelihood P(Y < LLOQ)
+                var_res = compute_residual_variance(f, sigma)
+                if var_res <= 0 || !isfinite(var_res)
+                    return T(Inf)
+                end
+                sigma_res = sqrt(var_res)
+                z = (lloq - f) / sigma_res
+                # Use stable log(Phi(z)) computation
+                log_phi = log_phi_stable(Float64(z))
+                ll += T(-2.0 * log_phi)
+                continue
+            end
         end
 
         var_res = compute_residual_variance(f, sigma)
@@ -486,6 +538,7 @@ end
 
 """
 Objective function for eta optimization (negative log posterior).
+Supports BLQ handling via optional parameters.
 """
 function eta_objective(
     eta::AbstractVector{T},
@@ -495,10 +548,14 @@ function eta_objective(
     times::Vector{Float64},
     obs::Vector{Float64},
     doses::Vector{DoseEvent},
-    model_spec::ModelSpec
+    model_spec::ModelSpec;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    blq_flags::Vector{Bool}=Bool[],
+    lloq::Float64=0.0
 ) where T
     pred = compute_predictions_analytic(T.(theta), eta, times, doses, model_spec)
-    ll = compute_log_likelihood(obs, pred, sigma)
+    ll = compute_log_likelihood(obs, pred, sigma;
+                                blq_config=blq_config, blq_flags=blq_flags, lloq=lloq)
     prior = compute_prior(eta, omega_inv)
     return ll + prior
 end
@@ -506,6 +563,7 @@ end
 """
 Find the conditional mode of eta AND compute the Hessian at the mode.
 Uses analytic solutions for AD-compatible gradient/Hessian computation.
+Supports BLQ handling via optional parameters.
 """
 function find_eta_mode_with_hessian(
     theta::Vector{Float64},
@@ -517,25 +575,36 @@ function find_eta_mode_with_hessian(
     model_spec::ModelSpec,
     eta_init::Vector{Float64},
     max_iter::Int,
-    tol::Float64
+    tol::Float64;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    blq_flags::Vector{Bool}=Bool[],
+    lloq::Float64=0.0
 )::Tuple{Vector{Float64}, Matrix{Float64}, Float64, Float64}
     n_eta = length(eta_init)
     omega_inv = inv(omega)
 
     # Closure for optimization (no type annotation for ForwardDiff)
+    # Note: BLQ params are captured in closure
     function obj(eta)
-        return eta_objective(eta, theta, omega_inv, sigma, times, obs, doses, model_spec)
+        return eta_objective(eta, theta, omega_inv, sigma, times, obs, doses, model_spec;
+                            blq_config=blq_config, blq_flags=blq_flags, lloq=lloq)
     end
 
-    # Find mode using BFGS
-    result = optimize(
+    # Find mode using fallback optimizer chain (BFGS -> L-BFGS -> Nelder-Mead)
+    opt_config = OptimizerConfig(
+        max_attempts_per_optimizer=1,  # Keep inner optimization fast
+        verbose=false
+    )
+    opt_options = Optim.Options(iterations=max_iter, g_tol=tol, show_trace=false)
+
+    opt_result = optimize_with_fallback(
         obj,
         eta_init,
-        BFGS(linesearch=LineSearches.BackTracking()),
-        Optim.Options(iterations=max_iter, g_tol=tol, show_trace=false)
+        opt_config;
+        options=opt_options
     )
 
-    eta_mode = Optim.minimizer(result)
+    eta_mode = opt_result.minimizer
 
     # Compute Hessian at the mode using ForwardDiff
     H_eta = ForwardDiff.hessian(obj, eta_mode)
@@ -543,7 +612,8 @@ function find_eta_mode_with_hessian(
 
     # Compute contributions at mode
     pred_mode = compute_predictions_analytic(theta, eta_mode, times, doses, model_spec)
-    ll_contrib = compute_log_likelihood(obs, pred_mode, sigma)
+    ll_contrib = compute_log_likelihood(obs, pred_mode, sigma;
+                                        blq_config=blq_config, blq_flags=blq_flags, lloq=lloq)
     prior_contrib = compute_prior(eta_mode, omega_inv)
 
     return eta_mode, H_eta, ll_contrib, prior_contrib
@@ -595,6 +665,11 @@ where:
 
 For CWRES:
     CWRES_i = (y_i - f_i(η*)) / sqrt(Var(y_i))
+
+# Returns
+- Tuple of (cwres::Vector{Float64}, used_fallback::Bool)
+  - cwres: Conditional weighted residuals
+  - used_fallback: True if CWRES computation fell back to IWRES due to Hessian issues
 """
 function compute_cwres_proper(
     obs::Vector{Float64},
@@ -607,10 +682,11 @@ function compute_cwres_proper(
     times::Vector{Float64},
     doses::Vector{DoseEvent},
     model_spec::ModelSpec
-)::Vector{Float64}
+)::Tuple{Vector{Float64}, Bool}
     n_obs = length(obs)
     n_eta = length(eta)
     cwres = zeros(n_obs)
+    used_fallback = false
 
     # Compute sensitivity gradients: G[i,j] = ∂f_i/∂η_j
     G = compute_prediction_sensitivities(theta, eta, times, doses, model_spec)
@@ -644,14 +720,18 @@ function compute_cwres_proper(
             end
         end
     catch e
-        # Fallback: use simple IWRES
+        # Fallback: use simple IWRES when Hessian inversion fails
+        used_fallback = true
+        @warn "CWRES computation fell back to IWRES: Hessian inversion failed. " *
+              "This loses the conditional adjustment for random effects uncertainty. " *
+              "Error: $(typeof(e))"
         for i in 1:n_obs
             var_res = compute_residual_variance(ipred[i], sigma)
             cwres[i] = (obs[i] - ipred[i]) / sqrt(var_res)
         end
     end
 
-    return cwres
+    return (cwres, used_fallback)
 end
 
 # ============================================================================
@@ -767,6 +847,15 @@ function foce_estimate(
     for (i, subj_data) in enumerate(subjects_with_cov)
         n_obs_i = length(subj_data[2])
         subject_occasions[i] = extract_occasion_indices(subj_data[5], n_obs_i)
+    end
+
+    # Extract BLQ information for each subject
+    blq_config = config.blq_config
+    subject_blq_flags = Vector{Vector{Bool}}(undef, n_subj)
+    subject_lloq = Vector{Float64}(undef, n_subj)
+    for (i, s) in enumerate(observed.subjects)
+        subject_blq_flags[i] = get_blq_flags_for_subject(s, blq_config)
+        subject_lloq[i] = get_lloq_for_subject(s, blq_config)
     end
 
     # Initialize
@@ -887,7 +976,8 @@ function foce_estimate(
             eta_mode, H_eta, ll_contrib, prior_contrib = find_eta_mode_with_hessian(
                 theta, omega_i, sigma, times, obs, doses,
                 model_spec, eta_per_subject[i],
-                config.method.max_inner_iter, config.method.inner_tol
+                config.method.max_inner_iter, config.method.inner_tol;
+                blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
             )
 
             eta_per_subject[i] = eta_mode
@@ -907,31 +997,35 @@ function foce_estimate(
         return ofv
     end
 
-    # Optimize with bounds
-    lower_bounds = vcat(config.theta_lower, fill(-10.0, n_omega_params + n_sigma_params))
-    upper_bounds = vcat(config.theta_upper, fill(5.0, n_omega_params + n_sigma_params))
+    # Optimize with bounds (use configurable variance bounds)
+    # Uses fallback optimizer chain: BFGS -> L-BFGS -> Nelder-Mead
+    lower_bounds = vcat(config.theta_lower, fill(config.variance_log_lower, n_omega_params + n_sigma_params))
+    upper_bounds = vcat(config.theta_upper, fill(config.variance_log_upper, n_omega_params + n_sigma_params))
 
-    result = optimize(
+    opt_config = OptimizerConfig(verbose=config.verbose)
+    opt_options = Optim.Options(
+        iterations=config.max_iter,
+        g_tol=config.tol,
+        show_trace=config.verbose
+    )
+
+    opt_result = optimize_bounded_with_fallback(
         foce_objective,
         lower_bounds,
         upper_bounds,
         x_init,
-        Fminbox(BFGS(linesearch=LineSearches.BackTracking())),
-        Optim.Options(
-            iterations=config.max_iter,
-            g_tol=config.tol,
-            show_trace=config.verbose
-        )
+        opt_config;
+        options=opt_options
     )
 
-    converged = Optim.converged(result)
-    n_iter = Optim.iterations(result)
+    converged = opt_result.converged
+    n_iter = opt_result.iterations
 
     # Extract final estimates
-    x_final = Optim.minimizer(result)
+    x_final = opt_result.minimizer
     theta_final, omega_final, sigma_vals_final = unpack_params(x_final)
     sigma_final = update_sigma_params(sigma_current, sigma_vals_final)
-    final_ofv = Optim.minimum(result)
+    final_ofv = opt_result.minimum
 
     # Recompute etas at final parameters (with covariate-adjusted omega if applicable)
     for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
@@ -952,7 +1046,8 @@ function foce_estimate(
         eta_mode, H_eta, ll_contrib, prior_contrib = find_eta_mode_with_hessian(
             theta_final, omega_i, sigma_final, times, obs, doses,
             model_spec, eta_per_subject[i],
-            config.method.max_inner_iter, config.method.inner_tol
+            config.method.max_inner_iter, config.method.inner_tol;
+            blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
         )
         eta_per_subject[i] = eta_mode
         hessian_per_subject[i] = H_eta
@@ -961,18 +1056,26 @@ function foce_estimate(
     end
 
     # Compute individual estimates with PROPER CWRES
-    individual_estimates = compute_individual_estimates_foce(
+    individual_estimates, cwres_fallback_subjects = compute_individual_estimates_foce(
         theta_final, omega_final, sigma_final,
         eta_per_subject, hessian_per_subject,
         ll_per_subject, prior_per_subject,
         subjects, model_spec
     )
 
+    # Report CWRES fallback summary if any occurred
+    if !isempty(cwres_fallback_subjects)
+        @warn "CWRES computation fell back to IWRES for $(length(cwres_fallback_subjects)) subjects " *
+              "due to Hessian issues. These subjects: $(join(cwres_fallback_subjects[1:min(5, length(cwres_fallback_subjects))], ", "))" *
+              (length(cwres_fallback_subjects) > 5 ? "..." : "")
+    end
+
     # Standard errors (Hessian-based)
     theta_se, omega_se, sigma_se, cov_success, cond_num, eig_ratio =
         compute_standard_errors_foce(
             theta_final, omega_final, sigma_final,
-            eta_per_subject, subjects, model_spec, config
+            eta_per_subject, subjects, model_spec, config;
+            blq_config=blq_config, subject_blq_flags=subject_blq_flags, subject_lloq=subject_lloq
         )
 
     # Robust standard errors (sandwich estimator) - if requested
@@ -981,7 +1084,8 @@ function foce_estimate(
         theta_se_robust = compute_robust_se_foce(
             theta_final, omega_final, sigma_final,
             eta_per_subject, subjects, model_spec, config,
-            n_theta, n_omega_params, n_sigma_params
+            n_theta, n_omega_params, n_sigma_params;
+            blq_config=blq_config, subject_blq_flags=subject_blq_flags, subject_lloq=subject_lloq
         )
     end
 
@@ -1017,6 +1121,19 @@ function foce_estimate(
         iov_names = join([string(s.eta_name) for s in config.iov_specs], ", ")
         push!(messages, "IOV enabled for: $iov_names ($(n_occasions) occasions)")
     end
+    if !isempty(cwres_fallback_subjects)
+        push!(messages, "Warning: CWRES fell back to IWRES for $(length(cwres_fallback_subjects)) subjects")
+    end
+
+    # Compute BLQ summary if BLQ handling is enabled
+    blq_summary = nothing
+    if blq_config !== nothing && blq_config.report_blq_summary
+        blq_summary = compute_blq_summary(observed, blq_config)
+        push!(messages, "BLQ handling: $(blq_config.method) with $(blq_summary.blq_observations)/$(blq_summary.total_observations) BLQ observations ($(round(blq_summary.blq_percentage, digits=1))%)")
+        for warning in blq_summary.warnings
+            push!(messages, "BLQ Warning: $warning")
+        end
+    end
 
     return EstimationResult(
         config,
@@ -1028,7 +1145,8 @@ function foce_estimate(
         converged, n_iter, converged ? 0.0 : NaN, cond_num, eig_ratio,
         cov_success,
         messages,
-        elapsed
+        elapsed,
+        blq_summary
     )
 end
 
@@ -1041,7 +1159,12 @@ export foce_estimate_proper
 # ============================================================================
 
 """
-Compute individual estimates with proper CWRES.
+Compute individual estimates for all subjects.
+
+Returns:
+- Tuple of (estimates::Vector{IndividualEstimate}, cwres_fallback_subjects::Vector{String})
+  - estimates: Individual estimates for each subject
+  - cwres_fallback_subjects: Subject IDs where CWRES fell back to IWRES
 """
 function compute_individual_estimates_foce(
     theta::Vector{Float64},
@@ -1053,8 +1176,9 @@ function compute_individual_estimates_foce(
     prior_contribs::Vector{Float64},
     subjects::Vector,
     model_spec::ModelSpec
-)::Vector{IndividualEstimate}
+)::Tuple{Vector{IndividualEstimate}, Vector{String}}
     estimates = IndividualEstimate[]
+    cwres_fallback_subjects = String[]
 
     for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
         eta = etas[i]
@@ -1066,11 +1190,15 @@ function compute_individual_estimates_foce(
         # PRED: population predictions (eta = 0)
         pred = compute_predictions_analytic(theta, zeros(length(eta)), times, doses, model_spec)
 
-        # PROPER CWRES with sensitivity gradients
-        cwres = compute_cwres_proper(
+        # PROPER CWRES with sensitivity gradients (returns tuple with fallback flag)
+        cwres, used_fallback = compute_cwres_proper(
             obs, Float64.(ipred), theta, eta, omega, sigma, H_eta,
             times, doses, model_spec
         )
+
+        if used_fallback
+            push!(cwres_fallback_subjects, subj_id)
+        end
 
         # IWRES: individual weighted residuals
         iwres = compute_iwres_simple(obs, Float64.(ipred), sigma)
@@ -1094,7 +1222,7 @@ function compute_individual_estimates_foce(
         ))
     end
 
-    return estimates
+    return (estimates, cwres_fallback_subjects)
 end
 
 """
@@ -1128,6 +1256,7 @@ end
 """
 Compute standard errors using the marginal likelihood Hessian.
 Supports both diagonal and full omega structures.
+Supports BLQ handling via optional parameters.
 """
 function compute_standard_errors_foce(
     theta::Vector{Float64},
@@ -1136,7 +1265,10 @@ function compute_standard_errors_foce(
     etas::Vector{Vector{Float64}},
     subjects::Vector,
     model_spec::ModelSpec,
-    config::EstimationConfig
+    config::EstimationConfig;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    subject_blq_flags::Vector{Vector{Bool}}=Vector{Bool}[],
+    subject_lloq::Vector{Float64}=Float64[]
 )
     n_theta = length(theta)
     n_eta = size(omega, 1)
@@ -1207,10 +1339,15 @@ function compute_standard_errors_foce(
 
         ofv = 0.0
         for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
+            # Get BLQ info for this subject (if available)
+            blq_flags_i = !isempty(subject_blq_flags) && i <= length(subject_blq_flags) ? subject_blq_flags[i] : Bool[]
+            lloq_i = !isempty(subject_lloq) && i <= length(subject_lloq) ? subject_lloq[i] : 0.0
+
             eta_mode, H_eta, ll_contrib, prior_contrib = find_eta_mode_with_hessian(
                 th, om, sig, times, obs, doses,
                 model_spec, etas[i],
-                config.method.max_inner_iter, config.method.inner_tol
+                config.method.max_inner_iter, config.method.inner_tol;
+                blq_config=blq_config, blq_flags=blq_flags_i, lloq=lloq_i
             )
 
             subj_ofv = foce_subject_objective(ll_contrib, prior_contrib, om, H_eta)
@@ -1367,6 +1504,7 @@ where:
 
 This provides SEs that are robust to model misspecification.
 Supports both diagonal and full omega structures.
+Supports BLQ handling via optional parameters.
 """
 function compute_robust_se_foce(
     theta::Vector{Float64},
@@ -1378,7 +1516,10 @@ function compute_robust_se_foce(
     config::EstimationConfig,
     n_theta::Int,
     n_omega_params::Int,
-    n_sigma::Int
+    n_sigma::Int;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    subject_blq_flags::Vector{Vector{Bool}}=Vector{Bool}[],
+    subject_lloq::Vector{Float64}=Float64[]
 )::Union{Nothing, Vector{Float64}}
     n_total = n_theta + n_omega_params + n_sigma
     n_subj = length(subjects)
@@ -1439,6 +1580,10 @@ function compute_robust_se_foce(
     function create_individual_ofv(subj_idx)
         subj_id, times, obs, doses = subjects[subj_idx]
 
+        # Get BLQ info for this subject (if available)
+        blq_flags_i = !isempty(subject_blq_flags) && subj_idx <= length(subject_blq_flags) ? subject_blq_flags[subj_idx] : Bool[]
+        lloq_i = !isempty(subject_lloq) && subj_idx <= length(subject_lloq) ? subject_lloq[subj_idx] : 0.0
+
         function ind_ofv(x)
             th = x[1:n_theta]
             omega_packed_x = x[n_theta+1:n_theta+n_omega_params]
@@ -1451,7 +1596,8 @@ function compute_robust_se_foce(
             eta_mode, H_eta, ll_contrib, prior_contrib = find_eta_mode_with_hessian(
                 th, om, sig, times, obs, doses,
                 model_spec, etas[subj_idx],
-                config.method.max_inner_iter, config.method.inner_tol
+                config.method.max_inner_iter, config.method.inner_tol;
+                blq_config=blq_config, blq_flags=blq_flags_i, lloq=lloq_i
             )
 
             return foce_subject_objective(ll_contrib, prior_contrib, om, H_eta)
@@ -1578,6 +1724,15 @@ function validate_foce_objective(
 
     subjects = extract_subject_data(observed)
 
+    # Extract BLQ information for each subject
+    blq_config = config.blq_config
+    subject_blq_flags = Vector{Vector{Bool}}(undef, n_subj)
+    subject_lloq = Vector{Float64}(undef, n_subj)
+    for (i, s) in enumerate(observed.subjects)
+        subject_blq_flags[i] = get_blq_flags_for_subject(s, blq_config)
+        subject_lloq[i] = get_lloq_for_subject(s, blq_config)
+    end
+
     eta_hessians = Vector{Matrix{Float64}}(undef, n_subj)
     laplacian_corrections = Vector{Float64}(undef, n_subj)
     likelihood_contributions = Vector{Float64}(undef, n_subj)
@@ -1587,7 +1742,8 @@ function validate_foce_objective(
         eta_mode, H_eta, ll_contrib, prior_contrib = find_eta_mode_with_hessian(
             theta, omega, sigma, times, obs, doses,
             model_spec, zeros(n_eta),
-            config.method.max_inner_iter, config.method.inner_tol
+            config.method.max_inner_iter, config.method.inner_tol;
+            blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
         )
 
         eta_hessians[i] = H_eta
@@ -1601,6 +1757,7 @@ function validate_foce_objective(
 
     return FOCEIDiagnostics(
         eta_hessians, laplacian_corrections,
-        likelihood_contributions, prior_contributions, true
+        likelihood_contributions, prior_contributions, true,
+        String[]  # No CWRES fallbacks tracked in validation-only mode
     )
 end

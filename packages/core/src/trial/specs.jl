@@ -422,7 +422,8 @@ Virtual subject for trial simulation.
 - `race::Symbol`: Race/ethnicity
 - `disease_severity::Union{Nothing, Symbol}`: Disease severity level
 - `baseline_biomarker::Union{Nothing, Float64}`: Baseline biomarker value
-- `other::Dict{Symbol, Float64}`: Other covariates
+- `other::Dict{Symbol, Any}`: Other covariates (can store scalars, vectors, or any value type)
+- `eta::Vector{Float64}`: Individual random effects (IIV parameters)
 """
 struct VirtualSubject
     id::Int
@@ -432,7 +433,27 @@ struct VirtualSubject
     race::Symbol
     disease_severity::Union{Nothing, Symbol}
     baseline_biomarker::Union{Nothing, Float64}
-    other::Dict{Symbol, Float64}
+    other::Dict{Symbol, Any}
+    eta::Vector{Float64}
+end
+
+"""
+    VirtualSubject(id, age, weight, sex, race; kwargs...)
+
+Convenience constructor for VirtualSubject with optional fields.
+"""
+function VirtualSubject(
+    id::Int,
+    age::Float64,
+    weight::Float64,
+    sex::Symbol,
+    race::Symbol;
+    disease_severity::Union{Nothing, Symbol}=nothing,
+    baseline_biomarker::Union{Nothing, Float64}=nothing,
+    other::Dict{Symbol, Any}=Dict{Symbol, Any}(),
+    eta::Vector{Float64}=Float64[]
+)
+    VirtualSubject(id, age, weight, sex, race, disease_severity, baseline_biomarker, other, eta)
 end
 
 # ============================================================================

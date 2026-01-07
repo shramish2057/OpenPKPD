@@ -6,6 +6,7 @@ using LinearAlgebra
 using StableRNGs
 using Distributions
 using Statistics
+using ForwardDiff
 
 export saem_estimate, SAEMDiagnostics
 
@@ -125,6 +126,15 @@ function saem_estimate(
 
     subjects = extract_subject_data(observed)
 
+    # Extract BLQ information for each subject
+    blq_config = config.blq_config
+    subject_blq_flags = Vector{Vector{Bool}}(undef, n_subj)
+    subject_lloq = Vector{Float64}(undef, n_subj)
+    for (i, s) in enumerate(observed.subjects)
+        subject_blq_flags[i] = get_blq_flags_for_subject(s, blq_config)
+        subject_lloq[i] = get_lloq_for_subject(s, blq_config)
+    end
+
     # Extract method parameters
     n_burn = config.method.n_burn
     n_iter = config.method.n_iter
@@ -199,11 +209,12 @@ function saem_estimate(
         end
 
         for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
-            # Run MCMC sampling
+            # Run MCMC sampling with BLQ support
             new_chains, accepts, n_props = mcmc_sample_eta_adaptive(
                 theta_current, omega_inv, omega_chol, sigma_current,
                 times, obs, doses, model_spec, grid, solver,
-                eta_chains[i], proposal_sds[i], n_mcmc_steps, subject_rngs[i]
+                eta_chains[i], proposal_sds[i], n_mcmc_steps, subject_rngs[i];
+                blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
             )
 
             eta_chains[i] = new_chains
@@ -306,11 +317,12 @@ function saem_estimate(
     end
 
     for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
-        # Run extra MCMC for final EBEs
+        # Run extra MCMC for final EBEs with BLQ support
         final_chains, _, _ = mcmc_sample_eta_adaptive(
             theta_current, omega_inv, omega_chol, sigma_current,
             times, obs, doses, model_spec, grid, solver,
-            eta_chains[i], proposal_sds[i], n_mcmc_steps * 2, subject_rngs[i]
+            eta_chains[i], proposal_sds[i], n_mcmc_steps * 2, subject_rngs[i];
+            blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
         )
         final_etas[i] = mean_across_chains(final_chains)
     end
@@ -389,6 +401,16 @@ function saem_estimate(
         push!(messages, "Warning: Some R-hat > 1.1 (check convergence)")
     end
 
+    # Compute BLQ summary if BLQ handling is enabled
+    blq_summary = nothing
+    if blq_config !== nothing && blq_config.report_blq_summary
+        blq_summary = compute_blq_summary(observed, blq_config)
+        push!(messages, "BLQ handling: $(blq_config.method) with $(blq_summary.blq_observations)/$(blq_summary.total_observations) BLQ observations ($(round(blq_summary.blq_percentage, digits=1))%)")
+        for warning in blq_summary.warnings
+            push!(messages, "BLQ Warning: $warning")
+        end
+    end
+
     return EstimationResult(
         config,
         theta_current, theta_se, nothing,  # theta_se_robust = nothing for SAEM
@@ -400,7 +422,8 @@ function saem_estimate(
         converged, n_total_iter, NaN, condition_num, eigenvalue_ratio,
         covariance_successful,
         messages,
-        elapsed
+        elapsed,
+        blq_summary
     )
 end
 
@@ -430,6 +453,7 @@ end
 
 """
 MCMC sampling of eta using Adaptive Metropolis-Hastings.
+Supports BLQ/censoring handling via optional parameters.
 
 Returns:
 - new_chains: Updated chain states
@@ -450,12 +474,17 @@ function mcmc_sample_eta_adaptive(
     current_chains::Vector{Vector{Float64}},
     proposal_sd::Vector{Float64},
     n_steps::Int,
-    rng
+    rng;
+    blq_config::Union{Nothing,BLQConfig}=nothing,
+    blq_flags::Vector{Bool}=Bool[],
+    lloq::Float64=0.0
 )::Tuple{Vector{Vector{Float64}}, Vector{Int}, Vector{Int}}
     n_chains = length(current_chains)
     n_eta = length(current_chains[1])
 
-    # Log posterior for eta (unnormalized)
+    # Log posterior for eta (unnormalized) with BLQ support
+    has_blq = blq_config !== nothing && !isempty(blq_flags)
+
     function log_posterior(eta)
         # Prior: N(0, omega) -> -0.5 * eta' * omega_inv * eta
         log_prior = -0.5 * dot(eta, omega_inv * eta)
@@ -466,10 +495,39 @@ function mcmc_sample_eta_adaptive(
         )
 
         log_lik = 0.0
-        for (y, f) in zip(obs, ipred)
+        for (i, (y, f)) in enumerate(zip(obs, ipred))
             if !isfinite(f) || f <= 0
                 return -Inf
             end
+
+            # Check if this observation is BLQ
+            is_blq = has_blq && i <= length(blq_flags) && blq_flags[i]
+
+            if is_blq
+                # Handle BLQ observation based on method
+                if blq_config.method == BLQ_M1_DISCARD
+                    # M1: No contribution to likelihood
+                    continue
+                elseif blq_config.method == BLQ_M2_IMPUTE_HALF
+                    # M2a: Impute with LLOQ/2
+                    y = lloq / 2.0
+                elseif blq_config.method == BLQ_M2_IMPUTE_ZERO
+                    # M2b: Impute with 0
+                    y = 0.0
+                elseif blq_config.method == BLQ_M3_LIKELIHOOD
+                    # M3: Censored likelihood P(Y < LLOQ)
+                    var_res = residual_variance(f, sigma)
+                    if var_res <= 0 || !isfinite(var_res)
+                        return -Inf
+                    end
+                    sigma_res = sqrt(var_res)
+                    z = (lloq - f) / sigma_res
+                    log_phi = log_phi_stable(Float64(z))
+                    log_lik += log_phi
+                    continue
+                end
+            end
+
             var_res = residual_variance(f, sigma)
             if var_res > 0
                 log_lik += -0.5 * (log(2π) + log(var_res) + (y - f)^2 / var_res)
@@ -633,6 +691,8 @@ function compute_omega_sufficient_stat_proper(
     n_eta::Int
 )::Matrix{Float64}
     if n_subj == 0
+        @warn "compute_omega_sufficient_stat_proper: No subjects available. " *
+              "Returning zero matrix. This may indicate data processing issues."
         return zeros(n_eta, n_eta)
     end
 
@@ -661,6 +721,8 @@ function compute_omega_sufficient_stat_proper(
     if total_weight > 0
         return S / total_weight
     else
+        @warn "compute_omega_sufficient_stat_proper: All subjects had empty post-burn-in samples. " *
+              "Returning zero matrix. Check MCMC burn-in settings or sample storage."
         return zeros(n_eta, n_eta)
     end
 end
@@ -1088,18 +1150,24 @@ function update_theta_saem(
         return neg_ll / 2.0
     end
 
-    # Optimize theta using safe bounds
+    # Optimize theta using safe bounds with fallback optimizer
     try
-        result = optimize(
+        opt_config = OptimizerConfig(
+            max_attempts_per_optimizer=1,  # Quick iterations in SAEM M-step
+            verbose=false
+        )
+        opt_options = Optim.Options(iterations=20, show_trace=false)
+
+        opt_result = optimize_bounded_with_fallback(
             theta_objective,
             config.theta_lower,
             config.theta_upper,
             theta_current,
-            Fminbox(BFGS(linesearch=LineSearches.BackTracking())),
-            Optim.Options(iterations=20, show_trace=false)
+            opt_config;
+            options=opt_options
         )
 
-        theta_new = Optim.minimizer(result)
+        theta_new = opt_result.minimizer
 
         # Apply stochastic approximation
         return (1 - step_size) .* theta_current .+ step_size .* theta_new
@@ -1522,45 +1590,129 @@ function compute_standard_errors_saem(
     # =========================================================================
     # S_mc = Var(score) where score = gradient of individual contributions
     # This captures the uncertainty from using MCMC samples instead of true posterior
+    # Using ForwardDiff for analytical gradient parts, numerical for ODE parts
 
     score_contributions = zeros(n_subj, n_total)
 
     for (subj_idx, (subj_id, times, obs, doses)) in enumerate(subjects)
         eta = etas[subj_idx]
 
-        # Compute individual score (gradient of individual log-likelihood)
-        for p in 1:n_total
-            hp = h_all[p]
-            x_plus_p = copy(x_current)
-            x_minus_p = copy(x_current)
-            x_plus_p[p] += hp
-            x_minus_p[p] -= hp
+        # Pre-compute predictions at current parameters (ODE part - not differentiable with AD)
+        th_current = x_current[1:n_theta]
+        try
+            ipred_current = compute_individual_predictions(
+                th_current, eta, times, doses, model_spec, grid, solver
+            )
 
-            # Individual contribution gradient
-            th_plus = x_plus_p[1:n_theta]
-            th_minus = x_minus_p[1:n_theta]
-            log_om_plus = x_plus_p[n_theta+1:n_theta+n_omega]
-            log_om_minus = x_minus_p[n_theta+1:n_theta+n_omega]
-            log_sig_plus = x_plus_p[n_theta+n_omega+1:end]
-            log_sig_minus = x_minus_p[n_theta+n_omega+1:end]
+            # Create AD-compatible objective for likelihood and prior parts
+            function analytical_objective(x::AbstractVector{T}) where T
+                th = x[1:n_theta]
+                log_om = x[n_theta+1:n_theta+n_omega]
+                log_sig = x[n_theta+n_omega+1:end]
 
+                # Prior contribution (omega part) - fully differentiable
+                omega_diag = exp.(log_om)
+                omega_inv_diag = one(T) ./ omega_diag
+                prior_contrib = T(0.5) * sum(omega_inv_diag .* (T.(eta)).^2) + T(0.5) * sum(log_om)
+
+                # Sigma part - fully differentiable
+                sigma_vals = exp.(log_sig)
+                var_vals = sigma_vals .^ 2
+
+                # Likelihood contribution using pre-computed predictions
+                lik_contrib = zero(T)
+                for (y, f) in zip(obs, ipred_current)
+                    if isfinite(f) && f > 0
+                        # Compute variance based on error model
+                        var_res = if length(var_vals) == 1
+                            # Proportional or additive
+                            var_vals[1] * max(T(f)^2, one(T))  # Proportional approximation
+                        else
+                            # Combined
+                            var_vals[1] + var_vals[2] * T(f)^2
+                        end
+                        residual = T(y) - T(f)
+                        lik_contrib += log(T(2π)) + log(var_res) + residual^2 / var_res
+                    else
+                        return T(Inf)
+                    end
+                end
+
+                return prior_contrib + lik_contrib / T(2.0)
+            end
+
+            # Use ForwardDiff for analytical gradients (prior + likelihood given fixed predictions)
             try
-                # Compute individual likelihood at plus/minus
-                f_plus_i = compute_individual_contribution(
-                    th_plus, exp.(log_om_plus), exp.(log_sig_plus), sigma,
-                    eta, times, obs, doses, model_spec, grid, solver
-                )
-                f_minus_i = compute_individual_contribution(
-                    th_minus, exp.(log_om_minus), exp.(log_sig_minus), sigma,
-                    eta, times, obs, doses, model_spec, grid, solver
-                )
+                grad = ForwardDiff.gradient(analytical_objective, x_current)
+                if all(isfinite.(grad))
+                    # For theta gradients, we need numerical differentiation through the ODE
+                    # but for omega/sigma, the analytical gradient is accurate
+                    # Compute numerical gradient for theta part only
+                    for p in 1:n_theta
+                        hp = h_all[p]
+                        x_plus_p = copy(x_current)
+                        x_minus_p = copy(x_current)
+                        x_plus_p[p] += hp
+                        x_minus_p[p] -= hp
 
-                if isfinite(f_plus_i) && isfinite(f_minus_i)
-                    score_contributions[subj_idx, p] = (f_plus_i - f_minus_i) / (2 * hp)
+                        th_plus = x_plus_p[1:n_theta]
+                        th_minus = x_minus_p[1:n_theta]
+
+                        ipred_plus = compute_individual_predictions(th_plus, eta, times, doses, model_spec, grid, solver)
+                        ipred_minus = compute_individual_predictions(th_minus, eta, times, doses, model_spec, grid, solver)
+
+                        log_om = x_current[n_theta+1:n_theta+n_omega]
+                        log_sig = x_current[n_theta+n_omega+1:end]
+                        omega_diag = exp.(log_om)
+                        sigma_vals = exp.(log_sig)
+
+                        f_plus_i = compute_ll_contribution(obs, ipred_plus, eta, omega_diag, sigma_vals, sigma)
+                        f_minus_i = compute_ll_contribution(obs, ipred_minus, eta, omega_diag, sigma_vals, sigma)
+
+                        if isfinite(f_plus_i) && isfinite(f_minus_i)
+                            score_contributions[subj_idx, p] = (f_plus_i - f_minus_i) / (2 * hp)
+                        end
+                    end
+
+                    # Use analytical gradients for omega and sigma parameters
+                    score_contributions[subj_idx, n_theta+1:end] = grad[n_theta+1:end]
                 end
             catch
-                # Skip if computation fails
+                # Full numerical fallback
+                for p in 1:n_total
+                    hp = h_all[p]
+                    x_plus_p = copy(x_current)
+                    x_minus_p = copy(x_current)
+                    x_plus_p[p] += hp
+                    x_minus_p[p] -= hp
+
+                    th_plus = x_plus_p[1:n_theta]
+                    th_minus = x_minus_p[1:n_theta]
+                    log_om_plus = x_plus_p[n_theta+1:n_theta+n_omega]
+                    log_om_minus = x_minus_p[n_theta+1:n_theta+n_omega]
+                    log_sig_plus = x_plus_p[n_theta+n_omega+1:end]
+                    log_sig_minus = x_minus_p[n_theta+n_omega+1:end]
+
+                    try
+                        f_plus_i = compute_individual_contribution(
+                            th_plus, exp.(log_om_plus), exp.(log_sig_plus), sigma,
+                            eta, times, obs, doses, model_spec, grid, solver
+                        )
+                        f_minus_i = compute_individual_contribution(
+                            th_minus, exp.(log_om_minus), exp.(log_sig_minus), sigma,
+                            eta, times, obs, doses, model_spec, grid, solver
+                        )
+
+                        if isfinite(f_plus_i) && isfinite(f_minus_i)
+                            score_contributions[subj_idx, p] = (f_plus_i - f_minus_i) / (2 * hp)
+                        end
+                    catch
+                        # Skip if computation fails
+                    end
+                end
             end
+        catch
+            # Skip subject if predictions fail
         end
     end
 
@@ -1627,6 +1779,37 @@ function compute_standard_errors_saem(
     catch e
         return nothing, nothing, nothing, false, condition_num, eigenvalue_ratio
     end
+end
+
+"""
+Helper function to compute log-likelihood contribution given predictions.
+Used for efficient gradient computation where predictions are pre-computed.
+"""
+function compute_ll_contribution(
+    obs::Vector{Float64},
+    ipred::Vector{Float64},
+    eta::Vector{Float64},
+    omega_diag::Vector{Float64},
+    sigma_vals::Vector{Float64},
+    sigma_template::ResidualErrorSpec
+)::Float64
+    # Prior contribution
+    omega_inv_diag = 1.0 ./ omega_diag
+    prior_contrib = 0.5 * sum(omega_inv_diag .* eta.^2) + 0.5 * sum(log.(omega_diag))
+
+    # Likelihood contribution
+    sigma = update_sigma_params(sigma_template, sigma_vals)
+
+    lik_contrib = 0.0
+    for (y, f) in zip(obs, ipred)
+        if isfinite(f) && f > 0
+            lik_contrib += observation_log_likelihood(y, f, sigma)
+        else
+            return Inf
+        end
+    end
+
+    return prior_contrib + lik_contrib / 2.0
 end
 
 """

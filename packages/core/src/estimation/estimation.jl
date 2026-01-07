@@ -4,6 +4,12 @@
 # Types and configuration
 include("estimation_types.jl")
 
+# Optimizer fallback (L-BFGS-B fallback when BFGS fails)
+include("optimizer_fallback.jl")
+
+# BLQ/Censoring likelihood functions
+include("blq_likelihood.jl")
+
 # Core estimation algorithm
 include("estimate.jl")
 

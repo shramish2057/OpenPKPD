@@ -153,7 +153,7 @@ Simulate PK/PD exposure for a single subject using the actual model engine.
 # Example
 ```julia
 model_spec = ModelSpec(OneCompIVBolus(), "pk", OneCompIVBolusParams(10.0, 50.0), DoseEvent[])
-subject = VirtualSubject(1, 45.0, 70.0, :male, :caucasian, nothing, nothing, Dict{Symbol,Float64}())
+subject = VirtualSubject(1, 45.0, 70.0, :male, :caucasian)  # Uses convenience constructor
 doses = [DoseEvent(0.0, 100.0)]
 exposure = simulate_subject_exposure(model_spec, subject, doses, [0.0, 1.0, 2.0, 4.0, 8.0])
 ```
