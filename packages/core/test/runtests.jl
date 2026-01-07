@@ -141,6 +141,11 @@ include("test_helpers.jl")
         include("test_parallel_mcmc.jl")
     end
 
+    # Bootstrap for Parameter Uncertainty
+    @testset "Bootstrap" begin
+        include("test_bootstrap.jl")
+    end
+
     # Dose Escalation Simulation
     @testset "Dose Escalation" begin
         include("test_escalation.jl")
