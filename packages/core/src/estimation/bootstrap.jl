@@ -1,12 +1,14 @@
 # Bootstrap Module for Standard Error Validation
 # Non-parametric bootstrap with stratified resampling
+# Supports parallel execution for large-scale bootstrap studies
 
 using StableRNGs
 using Statistics
 using LinearAlgebra
+using Base.Threads: @threads, nthreads
 
 export BootstrapSpec, BootstrapResult, BootstrapDiagnostics
-export run_bootstrap, stratified_resample, compute_bootstrap_ci
+export run_bootstrap, run_bootstrap_parallel_impl, stratified_resample, compute_bootstrap_ci
 export BootstrapCIMethod, PercentileCI, BCCI, StudentizedCI
 
 # ============================================================================
@@ -47,15 +49,28 @@ Fields:
 - n_bootstrap: Number of bootstrap replicates (default: 1000)
 - stratify_by: Variables to stratify by (e.g., [:dose, :formulation])
 - seed: Random seed for reproducibility
-- parallel: Whether to run in parallel
+- parallel: Whether to run in parallel (Bool) or ParallelConfig for advanced control
 - ci_level: Confidence interval level (default: 0.95)
 - ci_method: Method for computing CIs
+
+# Example
+```julia
+# Sequential bootstrap (for debugging or small studies)
+spec = BootstrapSpec(n_bootstrap=500, parallel=false)
+
+# Parallel bootstrap using all available threads
+spec = BootstrapSpec(n_bootstrap=1000, parallel=true)
+
+# Advanced: Custom parallel configuration
+config = ParallelConfig(ThreadedBackend(8); seed=12345)
+spec = BootstrapSpec(n_bootstrap=1000, parallel=config)
+```
 """
 struct BootstrapSpec
     n_bootstrap::Int
     stratify_by::Vector{Symbol}
     seed::UInt64
-    parallel::Bool
+    parallel::Union{Bool, ParallelConfig}
     ci_level::Float64
     ci_method::BootstrapCIMethod
 
@@ -63,13 +78,35 @@ struct BootstrapSpec
         n_bootstrap::Int=1000,
         stratify_by::Vector{Symbol}=Symbol[],
         seed::UInt64=UInt64(12345),
-        parallel::Bool=false,
+        parallel::Union{Bool, ParallelConfig}=false,
         ci_level::Float64=0.95,
         ci_method::BootstrapCIMethod=PercentileCI()
     )
         @assert n_bootstrap >= 100 "n_bootstrap must be >= 100"
         @assert 0.0 < ci_level < 1.0 "ci_level must be in (0, 1)"
         new(n_bootstrap, stratify_by, seed, parallel, ci_level, ci_method)
+    end
+end
+
+"""
+    get_parallel_config(spec::BootstrapSpec) -> ParallelConfig
+
+Get the parallel configuration from a BootstrapSpec.
+Converts Bool to appropriate ParallelConfig.
+"""
+function get_parallel_config(spec::BootstrapSpec)::ParallelConfig
+    if spec.parallel isa ParallelConfig
+        return spec.parallel
+    elseif spec.parallel === true
+        # Use all available threads
+        return ParallelConfig(
+            ThreadedBackend(nthreads());
+            seed=spec.seed,
+            load_balance=true,
+            progress=spec.n_bootstrap >= 100
+        )
+    else
+        return ParallelConfig(SerialBackend(); seed=spec.seed)
     end
 end
 
@@ -257,17 +294,34 @@ end
 
 Run bootstrap analysis for parameter estimation.
 
-Arguments:
-- estimation_fn: Function that takes observed data and returns EstimationResult
-- observed_data: Original observed data (ObservedData type)
-- spec: BootstrapSpec specifying bootstrap parameters
+Supports both sequential and parallel execution based on the `parallel` field
+in the BootstrapSpec. For large bootstrap studies (n >= 500), parallel execution
+can provide significant speedup.
 
-Keyword Arguments:
-- strata: Optional vector of strata labels for each subject
-- verbose: Print progress (default: false)
+# Arguments
+- `estimation_fn`: Function that takes observed data and returns EstimationResult
+- `observed_data`: Original observed data (ObservedData type)
+- `spec`: BootstrapSpec specifying bootstrap parameters
 
-Returns:
+# Keyword Arguments
+- `strata`: Optional vector of strata labels for each subject
+- `verbose`: Print progress (default: false)
+
+# Returns
 - BootstrapResult with bootstrap estimates and diagnostics
+
+# Example
+```julia
+# Sequential bootstrap
+result = run_bootstrap(estimate_fn, data, BootstrapSpec(n_bootstrap=500))
+
+# Parallel bootstrap (uses all available threads)
+result = run_bootstrap(estimate_fn, data, BootstrapSpec(n_bootstrap=1000, parallel=true))
+
+# Parallel with custom configuration
+config = ParallelConfig(ThreadedBackend(8); seed=42)
+result = run_bootstrap(estimate_fn, data, BootstrapSpec(parallel=config))
+```
 """
 function run_bootstrap(
     estimation_fn::Function,
@@ -276,10 +330,46 @@ function run_bootstrap(
     strata::Union{Nothing, Vector}=nothing,
     verbose::Bool=false
 )::BootstrapResult
+    # Get parallel configuration
+    parallel_config = get_parallel_config(spec)
+
+    # Dispatch to parallel or sequential implementation
+    if is_parallel(parallel_config)
+        return run_bootstrap_parallel_impl(
+            estimation_fn,
+            observed_data,
+            spec,
+            parallel_config;
+            strata=strata,
+            verbose=verbose
+        )
+    else
+        return run_bootstrap_sequential(
+            estimation_fn,
+            observed_data,
+            spec;
+            strata=strata,
+            verbose=verbose
+        )
+    end
+end
+
+"""
+    run_bootstrap_sequential(estimation_fn, observed_data, spec; strata, verbose)
+
+Internal sequential implementation of bootstrap analysis.
+"""
+function run_bootstrap_sequential(
+    estimation_fn::Function,
+    observed_data,
+    spec::BootstrapSpec;
+    strata::Union{Nothing, Vector}=nothing,
+    verbose::Bool=false
+)::BootstrapResult
     rng = StableRNG(spec.seed)
 
     n_subjects = length(observed_data.subjects)
-    subject_ids = [s.id for s in observed_data.subjects]
+    subject_ids = [s.subject_id for s in observed_data.subjects]
 
     # Run original estimation to get point estimate
     if verbose
@@ -291,7 +381,7 @@ function run_bootstrap(
 
     # Storage for bootstrap estimates
     theta_estimates = zeros(spec.n_bootstrap, n_params)
-    omega_estimates = Vector{Matrix{Float64}}[]
+    omega_estimates = Matrix{Float64}[]
     sigma_estimates = Float64[]
 
     n_successful = 0
@@ -344,26 +434,209 @@ function run_bootstrap(
         end
     end
 
+    # Aggregate and return results
+    return _aggregate_bootstrap_results(
+        theta_estimates,
+        omega_estimates,
+        sigma_estimates,
+        original_theta,
+        n_successful,
+        n_failed,
+        iterations,
+        spec
+    )
+end
+
+"""
+    run_bootstrap_parallel_impl(estimation_fn, observed_data, spec, parallel_config; strata, verbose)
+
+Internal parallel implementation of bootstrap analysis.
+Uses thread-safe RNG for reproducibility across parallel replicates.
+"""
+function run_bootstrap_parallel_impl(
+    estimation_fn::Function,
+    observed_data,
+    spec::BootstrapSpec,
+    parallel_config::ParallelConfig;
+    strata::Union{Nothing, Vector}=nothing,
+    verbose::Bool=false
+)::BootstrapResult
+    n_subjects = length(observed_data.subjects)
+    subject_ids = [s.subject_id for s in observed_data.subjects]
+
+    # Run original estimation to get point estimate
+    if verbose
+        n_workers_used = n_workers(parallel_config)
+        println("Running original estimation...")
+        println("Parallel bootstrap: $(spec.n_bootstrap) replicates using $n_workers_used workers")
+    end
+
+    original_result = estimation_fn(observed_data)
+    original_theta = original_result.theta
+    n_params = length(original_theta)
+
+    # Create independent RNGs for each bootstrap replicate (for reproducibility)
+    rngs = create_thread_rngs(spec.n_bootstrap; seed=spec.seed)
+
+    # Prepare replicate indices and strata info
+    replicate_indices = collect(1:spec.n_bootstrap)
+
+    # Define single replicate function
+    function run_single_replicate(rep_idx::Int, rng::AbstractRNG)
+        try
+            # Resample subjects using this replicate's RNG
+            if strata !== nothing
+                resampled_indices = stratified_resample(subject_ids, strata, rng)
+            else
+                resampled_indices = stratified_resample(n_subjects, rng)
+            end
+
+            # Create resampled dataset
+            resampled_data = _create_resampled_data(observed_data, resampled_indices)
+
+            # Run estimation on resampled data
+            boot_result = estimation_fn(resampled_data)
+
+            # Extract sigma parameter if available
+            sigma_val = NaN
+            if boot_result.sigma !== nothing
+                if hasproperty(boot_result.sigma, :params) && hasproperty(boot_result.sigma.params, :sigma)
+                    sigma_val = boot_result.sigma.params.sigma
+                end
+            end
+
+            # Return successful result
+            return (
+                success=true,
+                theta=copy(boot_result.theta),
+                omega=boot_result.omega !== nothing ? copy(boot_result.omega) : nothing,
+                sigma=sigma_val,
+                n_iter=hasproperty(boot_result, :n_iterations) ? boot_result.n_iterations : 0,
+                error=nothing
+            )
+        catch e
+            # Return failed result
+            return (
+                success=false,
+                theta=fill(NaN, n_params),
+                omega=nothing,
+                sigma=NaN,
+                n_iter=0,
+                error=e
+            )
+        end
+    end
+
+    # Run bootstrap replicates in parallel
+    if verbose
+        println("Starting parallel bootstrap...")
+    end
+
+    results = parallel_map_with_rng(
+        run_single_replicate,
+        replicate_indices,
+        rngs,
+        parallel_config
+    )
+
+    # Aggregate results
+    theta_estimates = zeros(spec.n_bootstrap, n_params)
+    omega_estimates = Matrix{Float64}[]
+    sigma_estimates = Float64[]
+    iterations = Float64[]
+    n_successful = 0
+    n_failed = 0
+
+    for (i, r) in enumerate(results)
+        if r.success
+            theta_estimates[i, :] = r.theta
+            if r.omega !== nothing
+                push!(omega_estimates, r.omega)
+            end
+            if !isnan(r.sigma)
+                push!(sigma_estimates, r.sigma)
+            end
+            if r.n_iter > 0
+                push!(iterations, Float64(r.n_iter))
+            end
+            n_successful += 1
+        else
+            theta_estimates[i, :] .= NaN
+            n_failed += 1
+            if verbose
+                println("Bootstrap replicate $i failed: $(r.error)")
+            end
+        end
+    end
+
+    if verbose
+        println("Parallel bootstrap complete: $n_successful successful, $n_failed failed")
+    end
+
+    # Aggregate and return results
+    return _aggregate_bootstrap_results(
+        theta_estimates,
+        omega_estimates,
+        sigma_estimates,
+        original_theta,
+        n_successful,
+        n_failed,
+        iterations,
+        spec
+    )
+end
+
+"""
+    _aggregate_bootstrap_results(theta_estimates, omega_estimates, sigma_estimates,
+                                  original_theta, n_successful, n_failed, iterations, spec)
+
+Internal helper to aggregate bootstrap results into BootstrapResult.
+"""
+function _aggregate_bootstrap_results(
+    theta_estimates::Matrix{Float64},
+    omega_estimates::Vector{Matrix{Float64}},
+    sigma_estimates::Vector{Float64},
+    original_theta::Vector{Float64},
+    n_successful::Int,
+    n_failed::Int,
+    iterations::Vector{Float64},
+    spec::BootstrapSpec
+)::BootstrapResult
+    n_params = length(original_theta)
+
     # Remove failed runs for statistics
     valid_mask = .!any(isnan.(theta_estimates), dims=2)[:]
     valid_estimates = theta_estimates[valid_mask, :]
 
-    # Compute statistics
-    theta_mean = vec(mean(valid_estimates, dims=1))
-    theta_se = vec(std(valid_estimates, dims=1))
-    bias = theta_mean .- original_theta
+    # Handle edge case: no successful replicates
+    if size(valid_estimates, 1) == 0
+        theta_mean = fill(NaN, n_params)
+        theta_se = fill(NaN, n_params)
+        bias = fill(NaN, n_params)
+        lower = fill(NaN, n_params)
+        upper = fill(NaN, n_params)
+    else
+        # Compute statistics
+        theta_mean = vec(mean(valid_estimates, dims=1))
+        theta_se = vec(std(valid_estimates, dims=1))
+        bias = theta_mean .- original_theta
 
-    # Compute confidence intervals
-    lower, upper = compute_bootstrap_ci(valid_estimates, original_theta, spec.ci_level, spec.ci_method)
+        # Compute confidence intervals
+        lower, upper = compute_bootstrap_ci(valid_estimates, original_theta, spec.ci_level, spec.ci_method)
+    end
 
     # Detect outliers (> 3 SD from mean)
     outlier_indices = Int[]
-    for j in 1:n_params
-        z_scores = abs.(valid_estimates[:, j] .- theta_mean[j]) ./ theta_se[j]
-        outliers = findall(z_scores .> 3.0)
-        append!(outlier_indices, outliers)
+    if size(valid_estimates, 1) > 0
+        for j in 1:n_params
+            if theta_se[j] > 0
+                z_scores = abs.(valid_estimates[:, j] .- theta_mean[j]) ./ theta_se[j]
+                outliers = findall(z_scores .> 3.0)
+                append!(outlier_indices, outliers)
+            end
+        end
+        outlier_indices = unique(outlier_indices)
     end
-    outlier_indices = unique(outlier_indices)
 
     # Create diagnostics
     diagnostics = BootstrapDiagnostics(

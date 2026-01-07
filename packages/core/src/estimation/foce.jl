@@ -802,7 +802,8 @@ function foce_estimate(
     config::EstimationConfig{FOCEIMethod},
     grid::SimGrid,
     solver::SolverSpec,
-    rng
+    rng;
+    parallel_config::ParallelConfig=ParallelConfig(SerialBackend())
 )::EstimationResult
     start_time = time()
     n_theta = length(config.theta_init)
@@ -943,7 +944,43 @@ function foce_estimate(
 
     x_init = pack_params(theta_current, omega_current, sigma_current)
 
-    # FOCE-I objective with covariate-on-IIV and IOV support
+    # Helper function to process a single subject (for parallel execution)
+    function process_single_subject(
+        i::Int,
+        theta::Vector{Float64},
+        omega::Matrix{Float64},
+        sigma::ResidualErrorSpec,
+        initial_eta::Vector{Float64}
+    )
+        subj_id, times, obs, doses = subjects[i]
+
+        # Compute subject-specific omega if covariate-on-IIV is enabled
+        omega_i = omega
+        if has_covariate_iiv
+            n_cov_effects = length(config.covariate_on_iiv)
+            theta_cov = zeros(n_cov_effects)
+            omega_i = compute_covariate_adjusted_omega(
+                omega,
+                config.covariate_on_iiv,
+                subject_covariates[i],
+                theta_cov,
+                config.omega_names
+            )
+        end
+
+        eta_mode, H_eta, ll_contrib, prior_contrib = find_eta_mode_with_hessian(
+            theta, omega_i, sigma, times, obs, doses,
+            model_spec, initial_eta,
+            config.method.max_inner_iter, config.method.inner_tol;
+            blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
+        )
+
+        subj_ofv = foce_subject_objective(ll_contrib, prior_contrib, omega_i, H_eta)
+
+        return (eta_mode, H_eta, ll_contrib, prior_contrib, subj_ofv)
+    end
+
+    # FOCE-I objective with covariate-on-IIV and IOV support (parallel-enabled)
     function foce_objective(x)
         theta, omega, sigma_vals = unpack_params(x)
 
@@ -954,47 +991,56 @@ function foce_estimate(
 
         sigma = update_sigma_params(sigma_current, sigma_vals)
 
-        ofv = 0.0
+        # Process subjects (parallel or serial based on config)
+        if is_parallel(parallel_config)
+            # Parallel execution: compute all subjects independently
+            subject_indices = collect(1:n_subj)
+            initial_etas = [copy(eta_per_subject[i]) for i in 1:n_subj]
 
-        for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
-            # Compute subject-specific omega if covariate-on-IIV is enabled
-            omega_i = omega
-            if has_covariate_iiv
-                # For covariate effects, we need additional theta parameters
-                # For now, use fixed effect sizes (could be extended to estimate these)
-                n_cov_effects = length(config.covariate_on_iiv)
-                theta_cov = zeros(n_cov_effects)  # Placeholder - would be estimated
-                omega_i = compute_covariate_adjusted_omega(
-                    omega,
-                    config.covariate_on_iiv,
-                    subject_covariates[i],
-                    theta_cov,
-                    config.omega_names
-                )
-            end
-
-            eta_mode, H_eta, ll_contrib, prior_contrib = find_eta_mode_with_hessian(
-                theta, omega_i, sigma, times, obs, doses,
-                model_spec, eta_per_subject[i],
-                config.method.max_inner_iter, config.method.inner_tol;
-                blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
+            results = parallel_map(
+                idx -> process_single_subject(idx, theta, omega, sigma, initial_etas[idx]),
+                subject_indices,
+                parallel_config
             )
 
-            eta_per_subject[i] = eta_mode
-            hessian_per_subject[i] = H_eta
-            ll_per_subject[i] = ll_contrib
-            prior_per_subject[i] = prior_contrib
+            # Collect results and compute total OFV
+            ofv = 0.0
+            for (i, result) in enumerate(results)
+                eta_mode, H_eta, ll_contrib, prior_contrib, subj_ofv = result
 
-            subj_ofv = foce_subject_objective(ll_contrib, prior_contrib, omega_i, H_eta)
+                if !isfinite(subj_ofv)
+                    return Inf
+                end
 
-            if !isfinite(subj_ofv)
-                return Inf
+                eta_per_subject[i] = eta_mode
+                hessian_per_subject[i] = H_eta
+                ll_per_subject[i] = ll_contrib
+                prior_per_subject[i] = prior_contrib
+                ofv += subj_ofv
             end
 
-            ofv += subj_ofv
-        end
+            return ofv
+        else
+            # Serial execution (original code path)
+            ofv = 0.0
 
-        return ofv
+            for i in 1:n_subj
+                result = process_single_subject(i, theta, omega, sigma, eta_per_subject[i])
+                eta_mode, H_eta, ll_contrib, prior_contrib, subj_ofv = result
+
+                if !isfinite(subj_ofv)
+                    return Inf
+                end
+
+                eta_per_subject[i] = eta_mode
+                hessian_per_subject[i] = H_eta
+                ll_per_subject[i] = ll_contrib
+                prior_per_subject[i] = prior_contrib
+                ofv += subj_ofv
+            end
+
+            return ofv
+        end
     end
 
     # Optimize with bounds (use configurable variance bounds)
@@ -1028,31 +1074,51 @@ function foce_estimate(
     final_ofv = opt_result.minimum
 
     # Recompute etas at final parameters (with covariate-adjusted omega if applicable)
-    for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
-        # Apply covariate adjustment if enabled
-        omega_i = omega_final
-        if has_covariate_iiv
-            n_cov_effects = length(config.covariate_on_iiv)
-            theta_cov = zeros(n_cov_effects)
-            omega_i = compute_covariate_adjusted_omega(
-                omega_final,
-                config.covariate_on_iiv,
-                subject_covariates[i],
-                theta_cov,
-                config.omega_names
-            )
-        end
+    # Uses parallel processing if enabled
+    if is_parallel(parallel_config)
+        subject_indices = collect(1:n_subj)
+        initial_etas = [copy(eta_per_subject[i]) for i in 1:n_subj]
 
-        eta_mode, H_eta, ll_contrib, prior_contrib = find_eta_mode_with_hessian(
-            theta_final, omega_i, sigma_final, times, obs, doses,
-            model_spec, eta_per_subject[i],
-            config.method.max_inner_iter, config.method.inner_tol;
-            blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
+        final_results = parallel_map(
+            idx -> process_single_subject(idx, theta_final, omega_final, sigma_final, initial_etas[idx]),
+            subject_indices,
+            parallel_config
         )
-        eta_per_subject[i] = eta_mode
-        hessian_per_subject[i] = H_eta
-        ll_per_subject[i] = ll_contrib
-        prior_per_subject[i] = prior_contrib
+
+        for (i, result) in enumerate(final_results)
+            eta_mode, H_eta, ll_contrib, prior_contrib, _ = result
+            eta_per_subject[i] = eta_mode
+            hessian_per_subject[i] = H_eta
+            ll_per_subject[i] = ll_contrib
+            prior_per_subject[i] = prior_contrib
+        end
+    else
+        for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
+            # Apply covariate adjustment if enabled
+            omega_i = omega_final
+            if has_covariate_iiv
+                n_cov_effects = length(config.covariate_on_iiv)
+                theta_cov = zeros(n_cov_effects)
+                omega_i = compute_covariate_adjusted_omega(
+                    omega_final,
+                    config.covariate_on_iiv,
+                    subject_covariates[i],
+                    theta_cov,
+                    config.omega_names
+                )
+            end
+
+            eta_mode, H_eta, ll_contrib, prior_contrib = find_eta_mode_with_hessian(
+                theta_final, omega_i, sigma_final, times, obs, doses,
+                model_spec, eta_per_subject[i],
+                config.method.max_inner_iter, config.method.inner_tol;
+                blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
+            )
+            eta_per_subject[i] = eta_mode
+            hessian_per_subject[i] = H_eta
+            ll_per_subject[i] = ll_contrib
+            prior_per_subject[i] = prior_contrib
+        end
     end
 
     # Compute individual estimates with PROPER CWRES

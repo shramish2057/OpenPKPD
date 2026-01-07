@@ -24,7 +24,8 @@ function laplacian_estimate(
     config::EstimationConfig{LaplacianMethod},
     grid::SimGrid,
     solver::SolverSpec,
-    rng
+    rng;
+    parallel_config::ParallelConfig=ParallelConfig(SerialBackend())
 )::EstimationResult
     start_time = time()
     n_theta = length(config.theta_init)
@@ -65,13 +66,37 @@ function laplacian_estimate(
         n_iter = iter
 
         # E-step: Find mode of posterior for each subject's eta (with BLQ support)
-        for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
-            eta_per_subject[i] = find_eta_mode_laplacian(
-                theta_current, omega_current, sigma_current,
-                times, obs, doses, model_spec, grid, solver,
-                eta_per_subject[i], config.method.max_inner_iter, config.method.inner_tol;
-                blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
+        # Uses parallel processing if enabled
+        if is_parallel(parallel_config)
+            subject_indices = collect(1:n_subj)
+            initial_etas = [copy(eta_per_subject[i]) for i in 1:n_subj]
+
+            eta_results = parallel_map(
+                idx -> begin
+                    subj_id, times, obs, doses = subjects[idx]
+                    find_eta_mode_laplacian(
+                        theta_current, omega_current, sigma_current,
+                        times, obs, doses, model_spec, grid, solver,
+                        initial_etas[idx], config.method.max_inner_iter, config.method.inner_tol;
+                        blq_config=blq_config, blq_flags=subject_blq_flags[idx], lloq=subject_lloq[idx]
+                    )
+                end,
+                subject_indices,
+                parallel_config
             )
+
+            for (i, eta) in enumerate(eta_results)
+                eta_per_subject[i] = eta
+            end
+        else
+            for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
+                eta_per_subject[i] = find_eta_mode_laplacian(
+                    theta_current, omega_current, sigma_current,
+                    times, obs, doses, model_spec, grid, solver,
+                    eta_per_subject[i], config.method.max_inner_iter, config.method.inner_tol;
+                    blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
+                )
+            end
         end
 
         # M-step: Update theta and omega given eta modes (with BLQ support)

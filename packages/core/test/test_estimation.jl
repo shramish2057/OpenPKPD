@@ -445,4 +445,7 @@ using StableRNGs
     # Include Time-Varying Covariates tests
     include("estimation/test_time_varying_covariates.jl")
 
+    # Include Parallel Computing tests
+    include("estimation/test_parallel.jl")
+
 end

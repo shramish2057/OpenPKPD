@@ -116,7 +116,8 @@ function saem_estimate(
     config::EstimationConfig{SAEMMethod},
     grid::SimGrid,
     solver::SolverSpec,
-    rng
+    rng;
+    parallel_config::ParallelConfig=ParallelConfig(SerialBackend())
 )::EstimationResult
     start_time = time()
     n_theta = length(config.theta_init)
@@ -208,26 +209,71 @@ function saem_estimate(
             Diagonal(sqrt.(abs.(diag(omega_current))))
         end
 
-        for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
-            # Run MCMC sampling with BLQ support
-            new_chains, accepts, n_props = mcmc_sample_eta_adaptive(
-                theta_current, omega_inv, omega_chol, sigma_current,
-                times, obs, doses, model_spec, grid, solver,
-                eta_chains[i], proposal_sds[i], n_mcmc_steps, subject_rngs[i];
-                blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
+        # E-step MCMC sampling (parallel or serial)
+        if is_parallel(parallel_config)
+            # Parallel execution: sample all subjects independently
+            subject_indices = collect(1:n_subj)
+            current_chains = [copy(eta_chains[i]) for i in 1:n_subj]
+            current_proposal_sds = [copy(proposal_sds[i]) for i in 1:n_subj]
+
+            # Create per-subject RNG seeds for reproducibility
+            subject_seeds = [config.seed + UInt64(iter * n_subj + i) for i in 1:n_subj]
+
+            mcmc_results = parallel_map(
+                idx -> begin
+                    subj_id, times, obs, doses = subjects[idx]
+                    subj_rng = StableRNG(subject_seeds[idx])
+
+                    new_chains, accepts, n_props = mcmc_sample_eta_adaptive(
+                        theta_current, omega_inv, omega_chol, sigma_current,
+                        times, obs, doses, model_spec, grid, solver,
+                        current_chains[idx], current_proposal_sds[idx], n_mcmc_steps, subj_rng;
+                        blq_config=blq_config, blq_flags=subject_blq_flags[idx], lloq=subject_lloq[idx]
+                    )
+
+                    eta_sample = if use_all_chains
+                        mean_across_chains(new_chains)
+                    else
+                        new_chains[1]
+                    end
+
+                    (new_chains, accepts, n_props, eta_sample)
+                end,
+                subject_indices,
+                parallel_config
             )
 
-            eta_chains[i] = new_chains
-            acceptance_counts[i] .+= accepts
-            total_proposals[i] .+= n_props
+            # Collect results
+            for (i, result) in enumerate(mcmc_results)
+                new_chains, accepts, n_props, eta_sample = result
+                eta_chains[i] = new_chains
+                acceptance_counts[i] .+= accepts
+                total_proposals[i] .+= n_props
+                sampled_etas[i] = eta_sample
+            end
+        else
+            # Serial execution (original code path)
+            for (i, (subj_id, times, obs, doses)) in enumerate(subjects)
+                # Run MCMC sampling with BLQ support
+                new_chains, accepts, n_props = mcmc_sample_eta_adaptive(
+                    theta_current, omega_inv, omega_chol, sigma_current,
+                    times, obs, doses, model_spec, grid, solver,
+                    eta_chains[i], proposal_sds[i], n_mcmc_steps, subject_rngs[i];
+                    blq_config=blq_config, blq_flags=subject_blq_flags[i], lloq=subject_lloq[i]
+                )
 
-            # Combine samples from all chains
-            if use_all_chains
-                # Average across all chains
-                sampled_etas[i] = mean_across_chains(new_chains)
-            else
-                # Use last sample from first chain (old behavior)
-                sampled_etas[i] = new_chains[1]
+                eta_chains[i] = new_chains
+                acceptance_counts[i] .+= accepts
+                total_proposals[i] .+= n_props
+
+                # Combine samples from all chains
+                if use_all_chains
+                    # Average across all chains
+                    sampled_etas[i] = mean_across_chains(new_chains)
+                else
+                    # Use last sample from first chain (old behavior)
+                    sampled_etas[i] = new_chains[1]
+                end
             end
         end
 

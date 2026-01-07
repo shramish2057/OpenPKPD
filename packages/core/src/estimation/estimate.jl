@@ -8,7 +8,7 @@ using StableRNGs
 export estimate
 
 """
-    estimate(observed, model_spec, config; grid, solver) -> EstimationResult
+    estimate(observed, model_spec, config; grid, solver, parallel_config) -> EstimationResult
 
 Estimate population pharmacokinetic/pharmacodynamic parameters using NLME methods.
 
@@ -23,6 +23,10 @@ to the appropriate algorithm based on the method specified in the config.
 # Keyword Arguments
 - `grid::SimGrid`: Simulation time grid
 - `solver::SolverSpec`: ODE solver specification
+- `parallel_config::ParallelConfig`: Parallel execution configuration (optional)
+  - Use `ParallelConfig(ThreadedBackend())` for multi-threaded execution
+  - Use `ParallelConfig(SerialBackend())` for serial execution (default)
+  - Set `seed` in parallel_config for reproducible parallel execution
 
 # Returns
 - `EstimationResult`: Estimated parameters, standard errors, and diagnostics
@@ -40,8 +44,12 @@ config = EstimationConfig(
     sigma_init = ResidualErrorSpec(ProportionalError(), ProportionalErrorParams(0.1), :conc, UInt64(1))
 )
 
-# Run estimation
+# Run estimation (serial)
 result = estimate(observed, model_spec, config; grid=grid, solver=solver)
+
+# Run estimation (parallel with all available threads)
+parallel = ParallelConfig(ThreadedBackend())
+result = estimate(observed, model_spec, config; grid=grid, solver=solver, parallel_config=parallel)
 
 # Check results
 println("OFV: ", result.ofv)
@@ -53,7 +61,8 @@ function estimate(
     model_spec::ModelSpec,
     config::EstimationConfig;
     grid::SimGrid,
-    solver::SolverSpec
+    solver::SolverSpec,
+    parallel_config::ParallelConfig=ParallelConfig(SerialBackend())
 )::EstimationResult
     start_time = time()
     rng = StableRNG(config.seed)
@@ -63,10 +72,15 @@ function estimate(
         println("  Subjects: $(n_subjects(observed))")
         println("  Observations: $(n_observations(observed))")
         println("  Parameters: theta=$(length(config.theta_init)), omega=$(size(config.omega_init, 1))")
+        if is_parallel(parallel_config)
+            println("  Parallel: $(n_workers(parallel_config)) workers ($(typeof(parallel_config.backend)))")
+        else
+            println("  Parallel: disabled (serial execution)")
+        end
     end
 
-    # Dispatch to appropriate method
-    result = _estimate_impl(observed, model_spec, config, grid, solver, rng)
+    # Dispatch to appropriate method with parallel config
+    result = _estimate_impl(observed, model_spec, config, grid, solver, rng, parallel_config)
 
     elapsed = time() - start_time
     if config.verbose
@@ -87,9 +101,10 @@ function _estimate_impl(
     config::EstimationConfig{FOCEIMethod},
     grid::SimGrid,
     solver::SolverSpec,
-    rng
+    rng,
+    parallel_config::ParallelConfig
 )::EstimationResult
-    return foce_estimate(observed, model_spec, config, grid, solver, rng)
+    return foce_estimate(observed, model_spec, config, grid, solver, rng; parallel_config=parallel_config)
 end
 
 function _estimate_impl(
@@ -98,9 +113,10 @@ function _estimate_impl(
     config::EstimationConfig{SAEMMethod},
     grid::SimGrid,
     solver::SolverSpec,
-    rng
+    rng,
+    parallel_config::ParallelConfig
 )::EstimationResult
-    return saem_estimate(observed, model_spec, config, grid, solver, rng)
+    return saem_estimate(observed, model_spec, config, grid, solver, rng; parallel_config=parallel_config)
 end
 
 function _estimate_impl(
@@ -109,9 +125,10 @@ function _estimate_impl(
     config::EstimationConfig{LaplacianMethod},
     grid::SimGrid,
     solver::SolverSpec,
-    rng
+    rng,
+    parallel_config::ParallelConfig
 )::EstimationResult
-    return laplacian_estimate(observed, model_spec, config, grid, solver, rng)
+    return laplacian_estimate(observed, model_spec, config, grid, solver, rng; parallel_config=parallel_config)
 end
 
 # ------------------------------------------------------------------
