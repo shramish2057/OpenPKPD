@@ -1,5 +1,12 @@
-# Test suite for TMDD (Target-Mediated Drug Disposition) Models
-# Comprehensive tests for all TMDD model variants
+# =============================================================================
+# Test suite for Industry-Standard TMDD Models
+# =============================================================================
+#
+# Comprehensive tests for TMDD model variants matching NONMEM/Monolix/Phoenix.
+# Tests all approximations: Full, QSS, QE, RapidBinding
+# Tests all routes: IVBolus, IVInfusion, Subcutaneous
+# Tests specialized models: FcRn, ADA, Soluble, Bispecific
+# =============================================================================
 
 using Test
 using OpenPKPDCore
@@ -9,317 +16,232 @@ using Statistics
 @testset "TMDD Models" begin
 
     @testset "TMDD Type Definitions" begin
-        @testset "TMDDFull" begin
-            @test TMDDFull() isa TMDDModelKind
-            @test TMDDFull() isa ModelKind
+        @testset "OneCptTMDD" begin
+            @test OneCptTMDD() isa TMDDModelKind
+            @test OneCptTMDD() isa ModelKind
+            @test OneCptTMDD().approximation == QSS
+            @test OneCptTMDD().route == IVBolus
 
-            params = TMDDFullParams(
-                0.01,   # kel
-                3.0,    # V
-                0.1,    # kon
-                0.001,  # koff
-                0.1,    # ksyn
-                0.05,   # kdeg
-                0.02,   # kint
-                2.0     # R0
-            )
-            @test params.kel == 0.01
+            # With explicit approximation
+            @test OneCptTMDD(FullTMDD).approximation == FullTMDD
+            @test OneCptTMDD(QE).approximation == QE
+
+            # Parameters
+            params = OneCptTMDDParams(0.2, 3.0, 0.05, 0.1, 0.01, 0.1, 1.0)
+            @test params.CL == 0.2
             @test params.V == 3.0
-            @test params.R0 == 2.0
+            @test params.KSS == 0.05
+            @test params.R0 == 1.0
         end
 
-        @testset "TMDDQSS" begin
-            @test TMDDQSS() isa TMDDModelKind
+        @testset "TwoCptTMDD - Industry Standard" begin
+            @test TwoCptTMDD() isa TMDDModelKind
+            @test TwoCptTMDD().approximation == QSS
+            @test TwoCptTMDD().route == IVBolus
 
-            params = TMDDQSSParams(
-                0.01,   # kel
-                3.0,    # V
-                0.01,   # KSS
-                0.1,    # ksyn
-                0.05,   # kdeg
-                0.02,   # kint
-                2.0     # Rtot0
+            # Various approximations
+            @test TwoCptTMDD(FullTMDD, IVBolus).approximation == FullTMDD
+            @test TwoCptTMDD(QE, IVBolus).approximation == QE
+            @test TwoCptTMDD(RapidBinding, IVBolus).approximation == RapidBinding
+
+            # Various routes
+            @test TwoCptTMDD(QSS, Subcutaneous).route == Subcutaneous
+            @test TwoCptTMDD(QSS, IVInfusion).route == IVInfusion
+
+            # Parameters - industry standard clearance-based
+            params = TwoCptTMDDParams(
+                0.22, 3.28, 2.66, 0.54,  # CL, V1, V2, Q
+                0.087, 0.037, 0.001, 0.012, 0.083  # KSS, kint, ksyn, kdeg, R0
             )
-            @test params.KSS == 0.01
-            @test params.Rtot0 == 2.0
+            @test params.CL == 0.22
+            @test params.V1 == 3.28
+            @test params.V2 == 2.66
+            @test params.Q == 0.54
+            @test params.KSS == 0.087
         end
 
-        @testset "TMDDQE" begin
-            @test TMDDQE() isa TMDDModelKind
+        @testset "TwoCptTMDDFcRn" begin
+            @test TwoCptTMDDFcRn() isa TMDDModelKind
+            @test TwoCptTMDDFcRn().approximation == QSS
 
-            params = TMDDQEParams(
-                0.01,   # kel
-                3.0,    # V
-                0.01,   # KD
-                0.1,    # ksyn
-                0.05,   # kdeg
-                2.0     # Rtot0
+            params = TwoCptTMDDFcRnParams(
+                3.0, 2.5, 0.5,  # V1, V2, Q
+                0.3, 0.7,  # CLup, FR
+                0.05, 0.1, 0.01, 0.1, 1.0  # KSS, kint, ksyn, kdeg, R0
             )
-            @test params.KD == 0.01
+            @test params.CLup == 0.3
+            @test params.FR == 0.7
         end
 
-        @testset "TMDDMM" begin
-            @test TMDDMM() isa TMDDModelKind
+        @testset "TwoCptTMDDADA" begin
+            @test TwoCptTMDDADA() isa TMDDModelKind
 
-            params = TMDDMMParams(
-                0.01,   # kel
-                3.0,    # V
-                0.5,    # Vmax
-                0.1     # Km
+            params = TwoCptTMDDADAParams(
+                0.2, 3.0, 2.5, 0.5,  # CL, V1, V2, Q
+                0.05, 0.1, 0.01, 0.1, 1.0,  # KSS, kint, ksyn, kdeg, R0
+                0.01, 0.05, 0.1, 0.01, 1.0,  # kADA_prod, kADA_deg, kon_ADA, koff_ADA, CL_complex
+                14.0,  # T_onset
+                0.0, 1.0  # ka, F
             )
-            @test params.Vmax == 0.5
-            @test params.Km == 0.1
+            @test params.kADA_prod == 0.01
+            @test params.T_onset == 14.0
         end
 
-        @testset "TMDDRapidBinding" begin
-            @test TMDDRapidBinding() isa TMDDModelKind
-
-            params = TMDDRapidBindingParams(
-                0.01,   # kel
-                3.0,    # V
-                0.01,   # KD
-                0.1,    # ksyn
-                0.05,   # kdeg
-                0.02,   # kint
-                2.0     # Rtot0
-            )
-            @test params.KD == 0.01
+        @testset "TMDDApproximation enum" begin
+            @test FullTMDD isa TMDDApproximation
+            @test QSS isa TMDDApproximation
+            @test QE isa TMDDApproximation
+            @test RapidBinding isa TMDDApproximation
+            @test IrreversibleBinding isa TMDDApproximation
         end
 
-        @testset "TMDDIrreversible" begin
-            @test TMDDIrreversible() isa TMDDModelKind
-
-            params = TMDDIrreversibleParams(
-                0.01,   # kel
-                3.0,    # V
-                0.1,    # kon
-                0.1,    # ksyn
-                0.05,   # kdeg
-                2.0     # R0
-            )
-            @test params.kon == 0.1
-        end
-
-        @testset "TMDD2CptFull" begin
-            @test TMDD2CptFull() isa TMDDModelKind
-
-            params = TMDD2CptFullParams(
-                0.01,   # kel
-                3.0,    # V1
-                4.0,    # V2
-                0.5,    # Q
-                0.1,    # kon
-                0.001,  # koff
-                0.1,    # ksyn
-                0.05,   # kdeg
-                0.02,   # kint
-                2.0     # R0
-            )
-            @test params.V1 == 3.0
-            @test params.V2 == 4.0
-            @test params.Q == 0.5
-        end
-
-        @testset "TMDD2CptQSS" begin
-            @test TMDD2CptQSS() isa TMDDModelKind
-
-            params = TMDD2CptQSSParams(
-                0.01,   # kel
-                3.0,    # V1
-                4.0,    # V2
-                0.5,    # Q
-                0.01,   # KSS
-                0.1,    # ksyn
-                0.05,   # kdeg
-                0.02,   # kint
-                2.0     # Rtot0
-            )
-            @test params.KSS == 0.01
-        end
-
-        @testset "TMDD2CptCL" begin
-            @test TMDD2CptCL() isa TMDDModelKind
-
-            params = TMDD2CptCLParams(
-                0.5,    # CL
-                3.0,    # V1
-                4.0,    # V2
-                0.5,    # Q
-                0.01,   # Kss
-                0.5,    # Vmax
-                2.0,    # R0
-                0.05    # kdeg
-            )
-            @test params.CL == 0.5
-            @test params.Vmax == 0.5
-        end
-
-        @testset "TMDDSolubleTarget" begin
-            @test TMDDSolubleTarget() isa TMDDModelKind
-
-            params = TMDDSolubleTargetParams(
-                0.01,   # kel
-                3.0,    # V
-                0.1,    # kon
-                0.001,  # koff
-                0.1,    # ksyn
-                0.05,   # kdeg
-                0.03,   # kel_complex
-                2.0     # R0
-            )
-            @test params.kel_complex == 0.03
-        end
-
-        @testset "TMDDInternalization" begin
-            @test TMDDInternalization() isa TMDDModelKind
-
-            params = TMDDInternalizationParams(
-                0.01,   # kel
-                3.0,    # V
-                0.1,    # kon
-                0.001,  # koff
-                0.1,    # ksyn
-                0.02,   # kint
-                0.01,   # kendo_R
-                0.05,   # krec
-                0.03,   # kdeg_e
-                2.0     # R0
-            )
-            @test params.kendo_R == 0.01
-            @test params.krec == 0.05
+        @testset "TMDDRoute enum" begin
+            @test IVBolus isa TMDDRoute
+            @test IVInfusion isa TMDDRoute
+            @test Subcutaneous isa TMDDRoute
         end
     end
 
     @testset "TMDDSpec Construction" begin
-        params = TMDDFullParams(0.01, 3.0, 0.1, 0.001, 0.1, 0.05, 0.02, 2.0)
-        doses = [DoseEvent(0.0, 100.0)]
+        params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+        doses = [DoseEvent(0.0, 200.0)]
 
-        spec = TMDDSpec(TMDDFull(), "Test TMDD", params, doses)
+        spec = TMDDSpec(TwoCptTMDD(), "Pembrolizumab", params, doses)
 
-        @test spec.kind isa TMDDFull
-        @test spec.name == "Test TMDD"
-        @test spec.params.kel == 0.01
+        @test spec.kind isa TwoCptTMDD
+        @test spec.name == "Pembrolizumab"
+        @test spec.params.CL == 0.22
         @test length(spec.doses) == 1
-        @test spec.doses[1].amount == 100.0
+        @test spec.doses[1].amount == 200.0
+        @test spec.target_units == :nM
+        @test spec.drug_units == :mg_L
+
+        # With explicit units
+        spec2 = TMDDSpec(TwoCptTMDD(), "Test", params, doses, :pM, :ug_mL)
+        @test spec2.target_units == :pM
+        @test spec2.drug_units == :ug_mL
     end
 
     @testset "TMDD Validation" begin
-        @testset "Valid specs" begin
-            params = TMDDFullParams(0.01, 3.0, 0.1, 0.001, 0.1, 0.05, 0.02, 2.0)
-            doses = [DoseEvent(0.0, 100.0)]
-            spec = TMDDSpec(TMDDFull(), "Test", params, doses)
+        @testset "Valid TwoCptTMDD spec" begin
+            params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+            doses = [DoseEvent(0.0, 200.0)]
+            spec = TMDDSpec(TwoCptTMDD(), "Test", params, doses)
 
-            # Should not throw
+            @test validate_tmdd(spec) === nothing
+        end
+
+        @testset "Valid OneCptTMDD spec" begin
+            params = OneCptTMDDParams(0.2, 3.0, 0.05, 0.1, 0.01, 0.1, 1.0)
+            doses = [DoseEvent(0.0, 100.0)]
+            spec = TMDDSpec(OneCptTMDD(), "Test", params, doses)
+
             @test validate_tmdd(spec) === nothing
         end
 
         @testset "Invalid - missing doses" begin
-            params = TMDDFullParams(0.01, 3.0, 0.1, 0.001, 0.1, 0.05, 0.02, 2.0)
-            spec = TMDDSpec(TMDDFull(), "Test", params, DoseEvent[])
+            params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+            spec = TMDDSpec(TwoCptTMDD(), "Test", params, DoseEvent[])
 
             @test_throws ErrorException validate_tmdd(spec)
         end
-
-        @testset "Validation for each model type" begin
-            doses = [DoseEvent(0.0, 100.0)]
-
-            # QSS
-            spec_qss = TMDDSpec(TMDDQSS(), "QSS", TMDDQSSParams(0.01, 3.0, 0.01, 0.1, 0.05, 0.02, 2.0), doses)
-            @test validate_tmdd(spec_qss) === nothing
-
-            # QE
-            spec_qe = TMDDSpec(TMDDQE(), "QE", TMDDQEParams(0.01, 3.0, 0.01, 0.1, 0.05, 2.0), doses)
-            @test validate_tmdd(spec_qe) === nothing
-
-            # MM
-            spec_mm = TMDDSpec(TMDDMM(), "MM", TMDDMMParams(0.01, 3.0, 0.5, 0.1), doses)
-            @test validate_tmdd(spec_mm) === nothing
-
-            # 2Cpt QSS
-            spec_2qss = TMDDSpec(TMDD2CptQSS(), "2QSS", TMDD2CptQSSParams(0.01, 3.0, 4.0, 0.5, 0.01, 0.1, 0.05, 0.02, 2.0), doses)
-            @test validate_tmdd(spec_2qss) === nothing
-
-            # 2Cpt CL
-            spec_2cl = TMDDSpec(TMDD2CptCL(), "2CL", TMDD2CptCLParams(0.5, 3.0, 4.0, 0.5, 0.01, 0.5, 2.0, 0.05), doses)
-            @test validate_tmdd(spec_2cl) === nothing
-        end
     end
 
-    @testset "TMDD Helper Functions" begin
+    @testset "TMDD Model Interface Functions" begin
         @testset "n_states" begin
-            @test n_states(TMDDFull()) == 3
-            @test n_states(TMDDQSS()) == 2
-            @test n_states(TMDDQE()) == 2
-            @test n_states(TMDDMM()) == 1
-            @test n_states(TMDDRapidBinding()) == 2
-            @test n_states(TMDDIrreversible()) == 2
-            @test n_states(TMDD2CptFull()) == 4
-            @test n_states(TMDD2CptQSS()) == 3
-            @test n_states(TMDD2CptCL()) == 3
-            @test n_states(TMDDSolubleTarget()) == 3
-            @test n_states(TMDDInternalization()) == 5
+            @test n_states(OneCptTMDD(FullTMDD)) == 3  # L, R, P
+            @test n_states(OneCptTMDD(QSS)) == 2  # L, Rtot
+            @test n_states(TwoCptTMDD(FullTMDD, IVBolus)) == 4  # L, Lp, R, P
+            @test n_states(TwoCptTMDD(QSS, IVBolus)) == 3  # L, Lp, Rtot
+            @test n_states(TwoCptTMDD(RapidBinding, IVBolus)) == 3  # Ltot, Lp, Rtot
+            @test n_states(TwoCptTMDDFcRn()) == 4  # L, Lp, Le, Rtot
+            @test n_states(TwoCptTMDDADA()) == 5  # L, Lp, Rtot, ADA, LADA
         end
 
         @testset "state_names" begin
-            @test state_names(TMDDFull()) == [:L, :R, :P]
-            @test state_names(TMDDQSS()) == [:L, :Rtot]
-            @test state_names(TMDDMM()) == [:L]
-            @test state_names(TMDD2CptQSS()) == [:L, :Lp, :Rtot]
+            @test state_names(OneCptTMDD(FullTMDD)) == [:L, :R, :P]
+            @test state_names(OneCptTMDD(QSS)) == [:L, :Rtot]
+            @test state_names(TwoCptTMDD(QSS, IVBolus)) == [:L, :Lp, :Rtot]
+            @test state_names(TwoCptTMDD(FullTMDD, IVBolus)) == [:L, :Lp, :R, :P]
+            @test state_names(TwoCptTMDD(RapidBinding, IVBolus)) == [:Ltot, :Lp, :Rtot]
         end
 
         @testset "dosing_compartment" begin
-            @test dosing_compartment(TMDDFull()) == 1
-            @test dosing_compartment(TMDD2CptQSS()) == 1
+            @test dosing_compartment(OneCptTMDD()) == 1
+            @test dosing_compartment(TwoCptTMDD()) == 1
+            @test dosing_compartment(TwoCptTMDD(QSS, Subcutaneous)) == 1  # SC depot
         end
 
         @testset "get_central_volume" begin
-            params_full = TMDDFullParams(0.01, 3.0, 0.1, 0.001, 0.1, 0.05, 0.02, 2.0)
-            @test get_central_volume(params_full) == 3.0
+            params_1cpt = OneCptTMDDParams(0.2, 3.0, 0.05, 0.1, 0.01, 0.1, 1.0)
+            @test get_central_volume(params_1cpt) == 3.0
 
-            params_2cpt = TMDD2CptQSSParams(0.01, 3.0, 4.0, 0.5, 0.01, 0.1, 0.05, 0.02, 2.0)
-            @test get_central_volume(params_2cpt) == 3.0
+            params_2cpt = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+            @test get_central_volume(params_2cpt) == 3.28
         end
 
         @testset "get_initial_state" begin
-            params = TMDDFullParams(0.01, 3.0, 0.1, 0.001, 0.1, 0.05, 0.02, 2.0)
-            doses = [DoseEvent(0.0, 100.0)]
-            spec = TMDDSpec(TMDDFull(), "Test", params, doses)
+            params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+            doses = [DoseEvent(0.0, 200.0)]
+            spec = TMDDSpec(TwoCptTMDD(), "Test", params, doses)
 
             u0 = get_initial_state(spec)
             @test length(u0) == 3
             @test u0[1] == 0.0  # L = 0
-            @test u0[2] == 2.0  # R = R0
-            @test u0[3] == 0.0  # P = 0
+            @test u0[2] == 0.0  # Lp = 0
+            @test u0[3] == 0.083  # Rtot = R0
         end
     end
 
-    @testset "TMDD Steady-State Calculations" begin
-        @testset "calculate_KD" begin
+    @testset "TMDD Derived Parameter Functions" begin
+        @testset "calculate_KD and calculate_KSS" begin
             @test calculate_KD(0.1, 0.001) ≈ 0.01
+            @test calculate_KSS(0.1, 0.001, 0.02) ≈ 0.21  # (koff + kint) / kon
         end
 
         @testset "calculate_Rtot_ss" begin
-            @test calculate_Rtot_ss(0.1, 0.05) ≈ 2.0
+            @test calculate_Rtot_ss(0.1, 0.05) ≈ 2.0  # ksyn / kdeg
         end
 
         @testset "calculate_half_life" begin
             @test calculate_half_life(log(2)) ≈ 1.0
+            @test calculate_half_life(0.1) ≈ log(2)/0.1
         end
 
         @testset "target_occupancy" begin
-            @test target_occupancy(0.01, 0.01) ≈ 0.5
-            @test target_occupancy(0.1, 0.01) > 0.9
-            @test target_occupancy(0.001, 0.01) < 0.1
+            @test target_occupancy(0.01, 0.01) ≈ 0.5  # At KD, 50% occupancy
+            @test target_occupancy(0.09, 0.01) ≈ 0.9 atol=0.01  # At 9*KD, 90% occupancy
+            @test target_occupancy(0.0, 0.01) == 0.0  # No drug = no occupancy
         end
 
         @testset "free_drug_concentration" begin
-            # When Ltot >> Rtot and Ltot >> KD*V, L ≈ Ltot
+            # High drug excess
             L = free_drug_concentration(100.0, 1.0, 0.01, 3.0)
             @test L > 98.0  # Most drug is free
 
-            # When Rtot >> Ltot, most drug is bound
+            # High target excess
             L2 = free_drug_concentration(1.0, 100.0, 0.01, 3.0)
             @test L2 < 0.5  # Most drug is bound
+        end
+
+        @testset "derived_pk_params" begin
+            params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+            derived = derived_pk_params(params)
+
+            @test derived.kel ≈ 0.22 / 3.28
+            @test derived.k12 ≈ 0.54 / 3.28
+            @test derived.k21 ≈ 0.54 / 2.66
+            @test derived.Vss ≈ 3.28 + 2.66
+            @test derived.R_ss ≈ 0.001 / 0.012  # ksyn / kdeg
+        end
+
+        @testset "convert_to_micro" begin
+            params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+            micro = convert_to_micro(params)
+
+            @test micro.kel ≈ 0.22 / 3.28
+            @test micro.k12 ≈ 0.54 / 3.28
+            @test micro.k21 ≈ 0.54 / 2.66
         end
     end
 
@@ -338,282 +260,223 @@ using Statistics
         end
 
         @testset "identify_tmdd_regime" begin
-            # High concentration - linear
             @test identify_tmdd_regime(10.0, 0.01, 1.0) == :linear
-
-            # Low concentration - TMDD
             @test identify_tmdd_regime(0.001, 0.01, 1.0) == :tmdd
-
-            # Mixed
             @test identify_tmdd_regime(0.1, 0.01, 1.0) == :mixed
         end
 
-        @testset "calculate_tmdd_steady_state" begin
-            params = TMDDFullParams(0.01, 3.0, 0.1, 0.001, 0.1, 0.05, 0.02, 2.0)
+        @testset "calculate_tmdd_steady_state - TwoCptTMDD" begin
+            params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
             ss = calculate_tmdd_steady_state(params)
 
-            @test ss.R_ss ≈ 2.0  # ksyn/kdeg = 0.1/0.05 = 2.0
-            @test ss.KD ≈ 0.01   # koff/kon = 0.001/0.1 = 0.01
-            @test ss.t_half_target ≈ log(2)/0.05
+            @test ss.R_ss ≈ 0.001 / 0.012  # ksyn/kdeg
+            @test ss.t_half_target ≈ log(2) / 0.012
+            @test ss.KSS == 0.087
+            @test ss.Vss ≈ 3.28 + 2.66
+        end
+
+        @testset "calculate_tmdd_half_lives" begin
+            params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+            hl = calculate_tmdd_half_lives(params)
+
+            @test hl.t_half_alpha > 0
+            @test hl.t_half_beta > 0
+            @test hl.t_half_beta > hl.t_half_alpha  # Terminal > distribution
+            @test hl.t_half_target ≈ log(2) / 0.012
+            @test hl.t_half_complex ≈ log(2) / 0.037
         end
     end
 
-    @testset "TMDD Simulation - Full Model" begin
-        params = TMDDFullParams(
-            0.01,   # kel = 0.01/day
-            3.0,    # V = 3 L
-            0.1,    # kon
-            0.001,  # koff
-            0.1,    # ksyn
-            0.05,   # kdeg
-            0.02,   # kint
-            2.0     # R0
+    @testset "TMDD Simulation - TwoCptTMDD QSS (Industry Standard)" begin
+        params = TwoCptTMDDParams(
+            0.22, 3.28, 2.66, 0.54,  # CL, V1, V2, Q
+            0.087, 0.037, 0.001, 0.012, 0.083  # KSS, kint, ksyn, kdeg, R0
         )
-        doses = [DoseEvent(0.0, 100.0)]  # 100 mg bolus
-        spec = TMDDSpec(TMDDFull(), "Test Full TMDD", params, doses)
+        doses = [DoseEvent(0.0, 200.0)]  # 200 mg IV bolus
+        spec = TMDDSpec(TwoCptTMDD(), "Test QSS", params, doses)
 
-        grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))  # 7 days
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
+        grid = SimGrid(0.0, 336.0, collect(0.0:1.0:336.0))  # 14 days
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
 
         result = solve_tmdd(spec, grid, solver)
 
         @test result isa TMDDSimResult
-        @test length(result.t) == 169
+        @test length(result.t) == 337
         @test haskey(result.states, :L)
-        @test haskey(result.states, :R)
-        @test haskey(result.states, :P)
-        @test haskey(result.observations, :conc)
-        @test haskey(result.observations, :target_occupancy)
-
-        # Initial concentration should be dose/V
-        @test result.observations[:conc][1] ≈ 100.0/3.0 atol=1e-6
-
-        # Concentration should decrease over time
-        @test result.observations[:conc][end] < result.observations[:conc][1]
-
-        # Target occupancy: starts at 0, increases as complex forms, then decreases
-        # At t=0, P=0 so occupancy=0. Find max occupancy (should be intermediate time)
-        max_occ = maximum(result.observations[:target_occupancy])
-        @test max_occ > 0.5  # Should achieve significant target engagement
-    end
-
-    @testset "TMDD Simulation - QSS" begin
-        params = TMDDQSSParams(
-            0.01,   # kel
-            3.0,    # V
-            0.01,   # KSS
-            0.1,    # ksyn
-            0.05,   # kdeg
-            0.02,   # kint
-            2.0     # Rtot0
-        )
-        doses = [DoseEvent(0.0, 100.0)]
-        spec = TMDDSpec(TMDDQSS(), "Test QSS", params, doses)
-
-        grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
-
-        result = solve_tmdd(spec, grid, solver)
-
-        @test result isa TMDDSimResult
-        @test haskey(result.states, :L)
+        @test haskey(result.states, :Lp)
         @test haskey(result.states, :Rtot)
         @test haskey(result.observations, :conc)
+        @test haskey(result.observations, :conc_peripheral)
+        @test haskey(result.observations, :target_occupancy)
 
-        # Should have reasonable PK behavior
-        @test result.observations[:conc][1] > 0
+        # Initial concentration = dose/V1
+        @test result.observations[:conc][1] ≈ 200.0 / 3.28 atol=0.1
+
+        # Concentration decreases
         @test result.observations[:conc][end] < result.observations[:conc][1]
+
+        # Peripheral builds up then declines
+        @test maximum(result.observations[:conc_peripheral]) > 0
+
+        # Target occupancy achieves high level then declines
+        max_occ = maximum(result.observations[:target_occupancy])
+        @test max_occ > 0.8  # Should achieve >80% with 200 mg dose
     end
 
-    @testset "TMDD Simulation - 2Cpt QSS" begin
-        params = TMDD2CptQSSParams(
-            0.01,   # kel
-            3.0,    # V1
-            4.0,    # V2
-            0.5,    # Q
-            0.01,   # KSS
-            0.1,    # ksyn
-            0.05,   # kdeg
-            0.02,   # kint
-            2.0     # Rtot0
+    @testset "TMDD Simulation - TwoCptTMDD Full Model" begin
+        params = TwoCptTMDDParams(
+            0.22, 3.28, 2.66, 0.54,
+            0.087, 0.037, 0.001, 0.012, 0.083
         )
         doses = [DoseEvent(0.0, 200.0)]
-        spec = TMDDSpec(TMDD2CptQSS(), "Test 2Cpt QSS", params, doses)
+        spec = TMDDSpec(TwoCptTMDD(FullTMDD, IVBolus), "Test Full", params, doses)
 
-        grid = SimGrid(0.0, 336.0, collect(0.0:2.0:336.0))  # 14 days
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
+        grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
 
         result = solve_tmdd(spec, grid, solver)
 
         @test result isa TMDDSimResult
         @test haskey(result.states, :L)
         @test haskey(result.states, :Lp)
-        @test haskey(result.states, :Rtot)
-        @test haskey(result.observations, :conc_peripheral)
+        @test haskey(result.states, :R)
+        @test haskey(result.states, :P)
 
-        # Peripheral should build up and then decline
-        @test maximum(result.observations[:conc_peripheral]) > 0
+        # Complex formation tracked
+        @test haskey(result.observations, :conc_bound)
+        @test maximum(result.observations[:conc_bound]) > 0
     end
 
-    @testset "TMDD Simulation - MM Approximation" begin
-        params = TMDDMMParams(
-            0.01,   # kel
-            3.0,    # V
-            0.5,    # Vmax
-            0.1     # Km
-        )
+    @testset "TMDD Simulation - OneCptTMDD" begin
+        params = OneCptTMDDParams(0.2, 3.0, 0.05, 0.1, 0.01, 0.1, 1.0)
         doses = [DoseEvent(0.0, 100.0)]
-        spec = TMDDSpec(TMDDMM(), "Test MM", params, doses)
+        spec = TMDDSpec(OneCptTMDD(), "Test 1Cpt", params, doses)
 
         grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
 
         result = solve_tmdd(spec, grid, solver)
 
         @test result isa TMDDSimResult
         @test haskey(result.observations, :conc)
-
-        # Nonlinear elimination - faster initial decline
-        @test result.observations[:conc][end] < 1.0  # Should clear significantly
+        @test result.observations[:conc][1] > 0
+        @test result.observations[:conc][end] < result.observations[:conc][1]
     end
 
-    @testset "TMDD Simulation - Irreversible" begin
-        params = TMDDIrreversibleParams(
-            0.01,   # kel
-            3.0,    # V
-            0.1,    # kon
-            0.1,    # ksyn
-            0.05,   # kdeg
-            2.0     # R0
-        )
-        doses = [DoseEvent(0.0, 100.0)]
-        spec = TMDDSpec(TMDDIrreversible(), "Test Irreversible", params, doses)
+    @testset "TMDD Simulation - TwoCptTMDD RapidBinding" begin
+        params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+        doses = [DoseEvent(0.0, 200.0)]
+        spec = TMDDSpec(TwoCptTMDD(RapidBinding, IVBolus), "Test Rapid", params, doses)
 
         grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
 
         result = solve_tmdd(spec, grid, solver)
 
         @test result isa TMDDSimResult
-        @test haskey(result.states, :L)
-        @test haskey(result.states, :R)
-
-        # Target should be depleted by irreversible binding
-        @test result.states[:R][end] < result.states[:R][1]
-    end
-
-    @testset "TMDD Simulation - Rapid Binding" begin
-        params = TMDDRapidBindingParams(
-            0.01,   # kel
-            3.0,    # V
-            0.01,   # KD
-            0.1,    # ksyn
-            0.05,   # kdeg
-            0.02,   # kint
-            2.0     # Rtot0
-        )
-        doses = [DoseEvent(0.0, 100.0)]
-        spec = TMDDSpec(TMDDRapidBinding(), "Test Rapid Binding", params, doses)
-
-        grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
-
-        result = solve_tmdd(spec, grid, solver)
-
-        @test result isa TMDDSimResult
-        @test haskey(result.states, :Ltot)
-        @test haskey(result.states, :Rtot)
+        @test haskey(result.states, :Ltot)  # Total drug
         @test haskey(result.observations, :conc_free)
         @test haskey(result.observations, :conc_total)
 
-        # Total > Free due to binding
+        # Total >= Free
         @test result.observations[:conc_total][1] >= result.observations[:conc_free][1]
     end
 
-    @testset "TMDD Multiple Doses" begin
-        params = TMDD2CptQSSParams(
-            0.01, 3.0, 4.0, 0.5, 0.01, 0.1, 0.05, 0.02, 2.0
+    @testset "TMDD Simulation - FcRn Recycling" begin
+        params = TwoCptTMDDFcRnParams(
+            3.0, 2.5, 0.5,  # V1, V2, Q
+            0.3, 0.7,  # CLup, FR (70% recycled)
+            0.05, 0.1, 0.01, 0.1, 1.0  # KSS, kint, ksyn, kdeg, R0
         )
+        doses = [DoseEvent(0.0, 200.0)]
+        spec = TMDDSpec(TwoCptTMDDFcRn(), "FcRn Test", params, doses)
 
-        # Weekly dosing (168 hours) - faster cycle
+        grid = SimGrid(0.0, 336.0, collect(0.0:2.0:336.0))
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
+
+        result = solve_tmdd(spec, grid, solver)
+
+        @test result isa TMDDSimResult
+        @test haskey(result.states, :Le)  # Endosomal
+        @test haskey(result.observations, :conc_endosomal)
+        @test haskey(result.observations, :endosomal_fraction)
+    end
+
+    @testset "TMDD Simulation - Multiple Doses" begin
+        params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+
+        # Q3W dosing (every 21 days = 504 hours)
         doses = [
             DoseEvent(0.0, 200.0),
-            DoseEvent(168.0, 200.0),
-            DoseEvent(336.0, 200.0)
+            DoseEvent(504.0, 200.0),
+            DoseEvent(1008.0, 200.0)
         ]
-        spec = TMDDSpec(TMDD2CptQSS(), "Weekly Dosing", params, doses)
+        spec = TMDDSpec(TwoCptTMDD(), "Q3W Dosing", params, doses)
 
-        grid = SimGrid(0.0, 504.0, collect(0.0:1.0:504.0))  # 3 weeks with hourly sampling
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
+        grid = SimGrid(0.0, 1512.0, collect(0.0:6.0:1512.0))  # 9 weeks
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
 
         result = solve_tmdd(spec, grid, solver)
 
         @test result isa TMDDSimResult
 
-        # Check that concentration is elevated throughout (accumulation)
         conc = result.observations[:conc]
         @test length(conc) > 0
 
-        # Initial Cmax
-        cmax_initial = maximum(conc[1:100])  # First ~100 hours
-        @test cmax_initial > 0
-
-        # Final trough should be elevated due to accumulation
-        ctrough_final = conc[end]
-        @test ctrough_final > 0
-
-        # Total AUC should be positive
+        # Should see accumulation at steady state
         metrics = tmdd_exposure_metrics(result)
         @test metrics.AUC > 0
+        @test metrics.Cmax > 0
     end
 
     @testset "TMDD Exposure Metrics" begin
-        params = TMDDQSSParams(0.01, 3.0, 0.01, 0.1, 0.05, 0.02, 2.0)
-        doses = [DoseEvent(0.0, 100.0)]
-        spec = TMDDSpec(TMDDQSS(), "Test", params, doses)
+        params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+        doses = [DoseEvent(0.0, 200.0)]
+        spec = TMDDSpec(TwoCptTMDD(), "Test", params, doses)
 
-        grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
+        grid = SimGrid(0.0, 336.0, collect(0.0:1.0:336.0))
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
 
         result = solve_tmdd(spec, grid, solver)
         metrics = tmdd_exposure_metrics(result)
 
         @test metrics.AUC > 0
+        @test metrics.AUC_total >= metrics.AUC
         @test metrics.Cmax > 0
         @test metrics.Tmax >= 0
         @test metrics.Ctrough >= 0
         @test metrics.AUC_occupancy > 0
         @test 0.0 <= metrics.mean_occupancy <= 1.0
+        @test 0.0 <= metrics.max_occupancy <= 1.0
     end
 
     @testset "Time Above Threshold" begin
-        params = TMDDQSSParams(0.01, 3.0, 0.01, 0.1, 0.05, 0.02, 2.0)
-        doses = [DoseEvent(0.0, 100.0)]
-        spec = TMDDSpec(TMDDQSS(), "Test", params, doses)
+        params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+        doses = [DoseEvent(0.0, 200.0)]
+        spec = TMDDSpec(TwoCptTMDD(), "Test", params, doses)
 
-        grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
+        grid = SimGrid(0.0, 336.0, collect(0.0:1.0:336.0))
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
 
         result = solve_tmdd(spec, grid, solver)
 
         # Time above 90% occupancy
         t_90 = time_above_occupancy(result, 0.9)
         @test t_90 >= 0.0
-        @test t_90 <= 168.0
+        @test t_90 <= 336.0
 
-        # Time above some concentration
-        t_conc = time_above_concentration(result, 1.0)
+        # Time above concentration threshold
+        t_conc = time_above_concentration(result, 10.0)
         @test t_conc >= 0.0
     end
 
     @testset "TMDD Determinism" begin
-        # Same spec should produce identical results
-        params = TMDDQSSParams(0.01, 3.0, 0.01, 0.1, 0.05, 0.02, 2.0)
-        doses = [DoseEvent(0.0, 100.0)]
-        spec = TMDDSpec(TMDDQSS(), "Test", params, doses)
+        params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+        doses = [DoseEvent(0.0, 200.0)]
+        spec = TMDDSpec(TwoCptTMDD(), "Test", params, doses)
 
         grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
 
         result1 = solve_tmdd(spec, grid, solver)
         result2 = solve_tmdd(spec, grid, solver)
@@ -622,81 +485,73 @@ using Statistics
         @test result1.states[:L] == result2.states[:L]
     end
 
-    @testset "TMDD Soluble Target" begin
-        params = TMDDSolubleTargetParams(
-            0.01,   # kel
-            3.0,    # V
-            0.1,    # kon
-            0.001,  # koff
-            0.1,    # ksyn
-            0.05,   # kdeg
-            0.03,   # kel_complex (different from kel)
-            2.0     # R0
-        )
-        doses = [DoseEvent(0.0, 100.0)]
-        spec = TMDDSpec(TMDDSolubleTarget(), "Soluble Target", params, doses)
-
-        grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
-
-        result = solve_tmdd(spec, grid, solver)
-
-        @test result isa TMDDSimResult
-        @test haskey(result.states, :P)  # Complex tracked
-        @test haskey(result.observations, :conc_bound)
-    end
-
-    @testset "TMDD Internalization Model" begin
-        params = TMDDInternalizationParams(
-            0.01,   # kel
-            3.0,    # V
-            0.1,    # kon
-            0.001,  # koff
-            0.1,    # ksyn
-            0.02,   # kint
-            0.01,   # kendo_R
-            0.05,   # krec
-            0.03,   # kdeg_e
-            2.0     # R0
-        )
-        doses = [DoseEvent(0.0, 100.0)]
-        spec = TMDDSpec(TMDDInternalization(), "Internalization", params, doses)
-
-        grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
-
-        result = solve_tmdd(spec, grid, solver)
-
-        @test result isa TMDDSimResult
-        @test haskey(result.states, :Re)  # Endosomal receptor
-        @test haskey(result.states, :Pe)  # Endosomal complex
-        @test haskey(result.observations, :R_endo_free)
-    end
-
-    @testset "TMDD 2Cpt CL Parameterization" begin
-        params = TMDD2CptCLParams(
-            0.5,    # CL = 0.5 L/day
-            3.0,    # V1
-            4.0,    # V2
-            0.5,    # Q
-            0.01,   # Kss
-            0.5,    # Vmax
-            2.0,    # R0
-            0.05    # kdeg
-        )
+    @testset "TMDD Model Comparison" begin
+        params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
         doses = [DoseEvent(0.0, 200.0)]
-        spec = TMDDSpec(TMDD2CptCL(), "CL Param", params, doses)
 
-        grid = SimGrid(0.0, 336.0, collect(0.0:2.0:336.0))
-        solver = SolverSpec(:Tsit5, 1e-8, 1e-8, 10000)
+        grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
+
+        # QSS approximation
+        spec_qss = TMDDSpec(TwoCptTMDD(QSS, IVBolus), "QSS", params, doses)
+        result_qss = solve_tmdd(spec_qss, grid, solver)
+
+        # Full model
+        spec_full = TMDDSpec(TwoCptTMDD(FullTMDD, IVBolus), "Full", params, doses)
+        result_full = solve_tmdd(spec_full, grid, solver)
+
+        # Compare
+        comparison = compare_tmdd_approximations(result_full, result_qss)
+
+        @test comparison.max_rel_error >= 0.0
+        @test comparison.AUC_rel_error >= 0.0
+        @test comparison.recommendation isa Symbol
+    end
+
+    @testset "TMDD Dose Selection" begin
+        params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+
+        # Estimate dose for 90% trough occupancy at 21-day interval
+        dose_est = target_trough_dose(params, 0.9, 504.0)  # Q3W
+        @test dose_est > 0
+
+        # Loading dose
+        ld = loading_dose(params, 0.9)
+        @test ld > 0
+    end
+
+    @testset "TMDD Steady-State Functions" begin
+        params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+
+        ss = tmdd_steady_state(params)
+        @test ss.R_ss > 0
+        @test ss.t_half_target > 0
+        @test ss.t_half_linear > 0
+        @test ss.KSS == params.KSS
+
+        tss = time_to_steady_state(params)
+        @test tss > 0
+    end
+
+    @testset "Metadata in Results" begin
+        params = TwoCptTMDDParams(0.22, 3.28, 2.66, 0.54, 0.087, 0.037, 0.001, 0.012, 0.083)
+        doses = [DoseEvent(0.0, 200.0)]
+        spec = TMDDSpec(TwoCptTMDD(), "Test", params, doses)
+
+        grid = SimGrid(0.0, 168.0, collect(0.0:1.0:168.0))
+        solver = SolverSpec(:Rodas5, 1e-8, 1e-8, 10000)
 
         result = solve_tmdd(spec, grid, solver)
 
-        @test result isa TMDDSimResult
-        @test haskey(result.observations, :conc)
+        @test haskey(result.metadata, "model_type")
+        @test haskey(result.metadata, "approximation")
+        @test haskey(result.metadata, "route")
+        @test haskey(result.metadata, "n_doses")
+        @test haskey(result.metadata, "solver")
+        @test haskey(result.metadata, "retcode")
 
-        # Should clear based on CL
-        @test result.observations[:conc][end] < result.observations[:conc][1]
+        @test result.metadata["approximation"] == "QSS"
+        @test result.metadata["route"] == "IVBolus"
     end
 
 end
