@@ -16,6 +16,7 @@ include("specs/time_covariates.jl")
 include("specs/specs.jl")
 include("specs/error_models.jl")
 include("specs/sensitivity.jl")
+include("specs/tmdd_specs.jl")
 
 # ------------------------------------------------------------------
 # PK model definitions
@@ -48,6 +49,12 @@ include("pd/drug_interaction.jl")
 include("pd/tolerance_counter_regulation.jl")
 include("pd/receptor_regulation.jl")
 include("pd/biophase_equilibration.jl")
+
+# ------------------------------------------------------------------
+# TMDD (Target-Mediated Drug Disposition) Models
+# Industry-standard models for biologics and monoclonal antibodies
+# ------------------------------------------------------------------
+include("tmdd/tmdd.jl")
 
 # ------------------------------------------------------------------
 # Numerical semantics 

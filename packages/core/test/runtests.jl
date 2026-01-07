@@ -150,4 +150,9 @@ include("test_helpers.jl")
     @testset "Dose Escalation" begin
         include("test_escalation.jl")
     end
+
+    # TMDD (Target-Mediated Drug Disposition) Models
+    @testset "TMDD Models" begin
+        include("test_tmdd.jl")
+    end
 end
