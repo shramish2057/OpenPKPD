@@ -87,6 +87,8 @@ nav:
       - Exposure Metrics: julia/nca/exposure-metrics.md
       - Terminal Phase Analysis: julia/nca/terminal-phase.md
       - Bioequivalence: julia/nca/bioequivalence.md
+      - Population NCA: julia/nca/population-nca.md
+      - Multiple Dose: julia/nca/multiple-dose.md
     - Parameter Estimation:
       - julia/estimation/index.md
       - FOCE-I Method: julia/estimation/foce.md

@@ -60,6 +60,14 @@ NCA calculates pharmacokinetic parameters directly from concentration-time data 
 
     [:octicons-arrow-right-24: Population NCA](population-nca.md)
 
+-   :material-pill-multiple:{ .lg .middle } **Multiple Dose**
+
+    ---
+
+    Steady-state metrics and accumulation
+
+    [:octicons-arrow-right-24: Multiple Dose](multiple-dose.md)
+
 </div>
 
 ---
@@ -211,5 +219,7 @@ OpenPKPD NCA calculations follow regulatory guidance:
 ## Next Steps
 
 - [Exposure Metrics](exposure-metrics.md) - Detailed metric calculations
+- [Terminal Phase](terminal-phase.md) - Lambda_z and half-life calculation
 - [Bioequivalence](bioequivalence.md) - BE analysis methods
 - [Population NCA](population-nca.md) - Multi-subject analysis
+- [Multiple Dose](multiple-dose.md) - Steady-state analysis

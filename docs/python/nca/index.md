@@ -24,14 +24,6 @@ The `openpkpd.nca` module provides FDA/EMA-compliant non-compartmental analysis 
 
     [:octicons-arrow-right-24: Config](config.md)
 
--   :material-calculator:{ .lg .middle } **Individual Functions**
-
-    ---
-
-    Cmax, Tmax, AUC, lambda_z
-
-    [:octicons-arrow-right-24: Functions](functions.md)
-
 -   :material-account-group:{ .lg .middle } **Population NCA**
 
     ---
