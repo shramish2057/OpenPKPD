@@ -5,7 +5,7 @@ NONMEM ADVAN2 Import - Python Example
 Run: python convert.py
 """
 
-from openpkpd import import_nonmem, simulate
+from neopkpd import import_nonmem, simulate
 
 
 def main():
@@ -20,7 +20,7 @@ def main():
     print(f"  Parameters: {model.parameters}")
 
     spec = model.spec
-    print("\nOpenPKPD Specification:")
+    print("\nNeoPKPD Specification:")
     print(f"  Model:   {spec.model}")
     print(f"  Ka:      {spec.params['Ka']} 1/h")
     print(f"  CL:      {spec.params['CL']} L/h")

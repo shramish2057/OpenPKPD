@@ -2,7 +2,7 @@ using Pkg
 Pkg.activate("packages/core")
 Pkg.instantiate()
 
-using OpenPKPDCore
+using NeoPKPDCore
 
 function require_semantics_fingerprint(path::String)
     art = read_execution_json(path)

@@ -5,7 +5,7 @@ Basic NCA Analysis - Python Example
 Run: python python.py
 """
 
-from openpkpd.nca import compute_nca
+from neopkpd.nca import compute_nca
 import numpy as np
 
 

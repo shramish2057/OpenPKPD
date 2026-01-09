@@ -5,7 +5,7 @@ Population Sensitivity - Python Example
 Run: python python.py
 """
 
-from openpkpd import create_model_spec, create_population_spec, compute_population_sensitivity
+from neopkpd import create_model_spec, create_population_spec, compute_population_sensitivity
 
 
 def main():

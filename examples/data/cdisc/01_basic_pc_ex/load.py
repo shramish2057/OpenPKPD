@@ -5,7 +5,7 @@ Basic CDISC Data Import - Python Example
 Run: python load.py
 """
 
-from openpkpd.data import load_cdisc
+from neopkpd.data import load_cdisc
 
 
 def main():
@@ -48,13 +48,13 @@ def main():
     for dose in data.doses:
         print(f"  Subject {dose.subject_id}: {dose.amount} mg at t={dose.time}h ({dose.route})")
 
-    # Convert to OpenPKPD format for analysis
+    # Convert to NeoPKPD format for analysis
     print("\n" + "=" * 50)
-    print("OpenPKPD Format")
+    print("NeoPKPD Format")
     print("=" * 50)
 
-    openpkpd_data = data.to_openpkpd()
-    print(f"\nReady for analysis with {len(openpkpd_data.subjects)} subjects")
+    neopkpd_data = data.to_neopkpd()
+    print(f"\nReady for analysis with {len(neopkpd_data.subjects)} subjects")
 
     return data
 

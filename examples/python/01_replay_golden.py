@@ -1,5 +1,5 @@
 from pathlib import Path
-from openpkpd import init_julia, replay_artifact
+from neopkpd import init_julia, replay_artifact
 
 init_julia()
 

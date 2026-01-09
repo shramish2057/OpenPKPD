@@ -4,9 +4,9 @@
 # simulation using the indirect response turnover model.
 
 using Pkg
-Pkg.activate(joinpath(@__DIR__, "..", "..", "..", "core", "OpenPKPDCore"))
+Pkg.activate(joinpath(@__DIR__, "..", "..", "..", "core", "NeoPKPDCore"))
 
-using OpenPKPDCore
+using NeoPKPDCore
 
 # === PK Model ===
 # One-compartment IV bolus

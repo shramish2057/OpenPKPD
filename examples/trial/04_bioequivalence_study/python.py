@@ -5,7 +5,7 @@ Bioequivalence Study - Python Example
 Run: python python.py
 """
 
-from openpkpd import trial
+from neopkpd import trial
 import numpy as np
 
 

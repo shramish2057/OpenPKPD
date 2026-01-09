@@ -1,7 +1,7 @@
 # Complex Covariate Model - Julia Example
-# Run: julia --project=core/OpenPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPDCore julia.jl
 
-using OpenPKPDCore
+using NeoPKPDCore
 using Random
 using LinearAlgebra
 

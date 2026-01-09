@@ -5,7 +5,7 @@ Power Analysis - Python Example
 Run: python python.py
 """
 
-from openpkpd import trial
+from neopkpd import trial
 import math
 
 

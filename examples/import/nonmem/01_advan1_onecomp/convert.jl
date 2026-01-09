@@ -4,7 +4,7 @@
 using Pkg
 Pkg.activate("packages/core")
 
-using OpenPKPDCore
+using NeoPKPDCore
 using JSON
 
 println("NONMEM ADVAN1 Import")
@@ -21,8 +21,8 @@ println("  Type:       $(model.model_type)")
 println("  Parameters: $(model.parameters)")
 println("  Source:     $(model.source)")
 
-# Display OpenPKPD specification
-println("\nOpenPKPD Specification:")
+# Display NeoPKPD specification
+println("\nNeoPKPD Specification:")
 println("-"^50)
 spec = model.spec
 

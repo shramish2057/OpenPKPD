@@ -5,8 +5,8 @@ Population Spaghetti Plot - Python Example
 Run: python plot.py
 """
 
-from openpkpd import simulate_population, create_model_spec, create_population_spec
-from openpkpd.viz import plot_population_spaghetti
+from neopkpd import simulate_population, create_model_spec, create_population_spec
+from neopkpd.viz import plot_population_spaghetti
 import matplotlib.pyplot as plt
 
 

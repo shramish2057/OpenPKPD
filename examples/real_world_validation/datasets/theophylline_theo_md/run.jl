@@ -2,7 +2,7 @@ using Pkg
 Pkg.activate("packages/core")
 Pkg.instantiate()
 
-using OpenPKPDCore
+using NeoPKPDCore
 using JSON
 
 function parse_maybe_float(s::AbstractString)

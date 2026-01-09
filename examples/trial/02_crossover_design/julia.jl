@@ -1,7 +1,7 @@
 # 2x2 Crossover Design - Julia Example
-# Run: julia --project=core/OpenPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPDCore julia.jl
 
-using OpenPKPDCore
+using NeoPKPDCore
 
 println("2x2 Crossover Study")
 println("="^50)

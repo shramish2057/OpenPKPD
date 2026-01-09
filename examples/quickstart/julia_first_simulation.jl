@@ -1,9 +1,9 @@
-# OpenPKPD Quickstart - Julia
-# Run: julia --project=core/OpenPKPDCore docs/examples/quickstart/julia_first_simulation.jl
+# NeoPKPD Quickstart - Julia
+# Run: julia --project=core/NeoPKPDCore docs/examples/quickstart/julia_first_simulation.jl
 
-using OpenPKPDCore
+using NeoPKPDCore
 
-println("OpenPKPD Quickstart - Julia")
+println("NeoPKPD Quickstart - Julia")
 println("="^40)
 
 # 1. Create a one-compartment IV bolus model

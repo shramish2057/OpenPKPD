@@ -3,22 +3,22 @@
 Example 02: Population Analysis with Python
 
 This example demonstrates population PK simulation and analysis
-using the OpenPKPD Python bindings.
+using the NeoPKPD Python bindings.
 """
 
-import openpkpd
+import neopkpd
 
 # Initialize Julia (required once per session)
 print("Initializing Julia...")
-openpkpd.init_julia()
+neopkpd.init_julia()
 
 # Check version
-print(f"OpenPKPD version: {openpkpd.version()}")
+print(f"NeoPKPD version: {neopkpd.version()}")
 print()
 
 # Run population simulation
 print("Running population simulation with 100 individuals...")
-result = openpkpd.simulate_population_iv_bolus(
+result = neopkpd.simulate_population_iv_bolus(
     cl=5.0,              # Typical clearance (L/h)
     v=50.0,              # Typical volume (L)
     doses=[{"time": 0.0, "amount": 100.0}],  # 100 mg IV bolus

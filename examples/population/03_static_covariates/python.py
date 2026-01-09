@@ -5,7 +5,7 @@ Static Covariates (Weight, Age) - Python Example
 Run: python python.py
 """
 
-from openpkpd import simulate_population, create_model_spec, create_population_spec
+from neopkpd import simulate_population, create_model_spec, create_population_spec
 import numpy as np
 
 

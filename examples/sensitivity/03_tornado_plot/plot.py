@@ -5,8 +5,8 @@ Tornado Plot - Python Example
 Run: python plot.py
 """
 
-from openpkpd import create_model_spec, compute_sensitivity
-from openpkpd.viz import plot_tornado
+from neopkpd import create_model_spec, compute_sensitivity
+from neopkpd.viz import plot_tornado
 import matplotlib.pyplot as plt
 
 

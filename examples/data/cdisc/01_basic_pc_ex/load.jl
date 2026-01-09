@@ -1,7 +1,7 @@
 # Basic CDISC Data Import - Julia Example
-# Run: julia --project=core/OpenPKPDCore load.jl
+# Run: julia --project=core/NeoPKPDCore load.jl
 
-using OpenPKPDCore
+using NeoPKPDCore
 
 println("CDISC PC/EX Data Import")
 println("="^50)
@@ -46,10 +46,10 @@ for dose in data.doses
     println("  Subject $(dose.subject_id): $(dose.amount) mg at t=$(dose.time)h ($(dose.route))")
 end
 
-# Convert to OpenPKPD format
+# Convert to NeoPKPD format
 println("\n" * "="^50)
-println("OpenPKPD Format")
+println("NeoPKPD Format")
 println("="^50)
 
-openpkpd_data = to_openpkpd(data)
-println("\nReady for analysis with $(length(openpkpd_data.subjects)) subjects")
+neopkpd_data = to_neopkpd(data)
+println("\nReady for analysis with $(length(neopkpd_data.subjects)) subjects")

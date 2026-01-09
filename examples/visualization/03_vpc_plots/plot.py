@@ -5,8 +5,8 @@ VPC Plot - Python Example
 Run: python plot.py
 """
 
-from openpkpd import compute_vpc, create_model_spec, create_population_spec, create_observed_data
-from openpkpd.viz import plot_vpc
+from neopkpd import compute_vpc, create_model_spec, create_population_spec, create_observed_data
+from neopkpd.viz import plot_vpc
 import matplotlib.pyplot as plt
 import numpy as np
 

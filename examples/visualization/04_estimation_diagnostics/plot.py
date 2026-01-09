@@ -5,7 +5,7 @@ Estimation Diagnostic Plots - Python Example
 Run: python plot.py
 """
 
-from openpkpd.viz import (
+from neopkpd.viz import (
     plot_dv_vs_pred,
     plot_dv_vs_ipred,
     plot_cwres_vs_time,

@@ -1,7 +1,7 @@
 # Two-Compartment IV Bolus Model - Julia Example
-# Run: julia --project=core/OpenPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPDCore julia.jl
 
-using OpenPKPDCore
+using NeoPKPDCore
 
 println("Two-Compartment IV Bolus Model")
 println("="^50)

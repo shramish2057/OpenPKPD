@@ -1,7 +1,7 @@
 # Parallel Group Design - Julia Example
-# Run: julia --project=core/OpenPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPDCore julia.jl
 
-using OpenPKPDCore
+using NeoPKPDCore
 
 println("Phase 2 Parallel Study")
 println("="^50)

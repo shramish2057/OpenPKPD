@@ -5,7 +5,7 @@ Single Subject Sensitivity - Python Example
 Run: python python.py
 """
 
-from openpkpd import simulate, create_model_spec, compute_sensitivity
+from neopkpd import simulate, create_model_spec, compute_sensitivity
 
 
 def main():

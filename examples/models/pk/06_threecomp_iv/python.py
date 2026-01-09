@@ -5,7 +5,7 @@ Three-Compartment IV Bolus Model - Python Example
 Run: python python.py
 """
 
-from openpkpd import simulate, create_model_spec
+from neopkpd import simulate, create_model_spec
 import numpy as np
 
 

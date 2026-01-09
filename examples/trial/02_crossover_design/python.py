@@ -5,7 +5,7 @@
 Run: python python.py
 """
 
-from openpkpd import trial
+from neopkpd import trial
 
 
 def main():

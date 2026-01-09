@@ -1,17 +1,17 @@
-/* OpenPKPD Custom Styles */
+/* NeoPKPD Custom Styles */
 
 /* ================================
    Color Palette
    ================================ */
 :root {
-  --openpkpd-primary: #3F51B5;
-  --openpkpd-accent: #673AB7;
-  --openpkpd-julia: #9558B2;
-  --openpkpd-python: #3776AB;
-  --openpkpd-success: #4CAF50;
-  --openpkpd-warning: #FF9800;
-  --openpkpd-error: #F44336;
-  --openpkpd-info: #2196F3;
+  --neopkpd-primary: #3F51B5;
+  --neopkpd-accent: #673AB7;
+  --neopkpd-julia: #9558B2;
+  --neopkpd-python: #3776AB;
+  --neopkpd-success: #4CAF50;
+  --neopkpd-warning: #FF9800;
+  --neopkpd-error: #F44336;
+  --neopkpd-info: #2196F3;
 }
 
 /* ================================
@@ -44,13 +44,13 @@
 /* Julia code blocks */
 .language-julia {
   background: linear-gradient(to right, rgba(149, 88, 178, 0.05), transparent);
-  border-left: 3px solid var(--openpkpd-julia);
+  border-left: 3px solid var(--neopkpd-julia);
 }
 
 /* Python code blocks */
 .language-python {
   background: linear-gradient(to right, rgba(55, 118, 171, 0.05), transparent);
-  border-left: 3px solid var(--openpkpd-python);
+  border-left: 3px solid var(--neopkpd-python);
 }
 
 /* Shell/Bash code blocks */
@@ -121,29 +121,29 @@
 
 .md-typeset .admonition.note,
 .md-typeset details.note {
-  border-color: var(--openpkpd-info);
+  border-color: var(--neopkpd-info);
 }
 
 .md-typeset .admonition.tip,
 .md-typeset details.tip {
-  border-color: var(--openpkpd-success);
+  border-color: var(--neopkpd-success);
 }
 
 .md-typeset .admonition.warning,
 .md-typeset details.warning {
-  border-color: var(--openpkpd-warning);
+  border-color: var(--neopkpd-warning);
 }
 
 .md-typeset .admonition.danger,
 .md-typeset details.danger {
-  border-color: var(--openpkpd-error);
+  border-color: var(--neopkpd-error);
 }
 
 /* ================================
    Hero Section
    ================================ */
 .hero-section {
-  background: linear-gradient(135deg, var(--openpkpd-primary), var(--openpkpd-accent));
+  background: linear-gradient(135deg, var(--neopkpd-primary), var(--neopkpd-accent));
   color: white;
   padding: 2rem;
   border-radius: 12px;
@@ -235,12 +235,12 @@
 }
 
 .language-badge.julia {
-  background-color: var(--openpkpd-julia);
+  background-color: var(--neopkpd-julia);
   color: white;
 }
 
 .language-badge.python {
-  background-color: var(--openpkpd-python);
+  background-color: var(--neopkpd-python);
   color: white;
 }
 
@@ -281,11 +281,11 @@
 }
 
 .function-signature .param {
-  color: var(--openpkpd-info);
+  color: var(--neopkpd-info);
 }
 
 .function-signature .type {
-  color: var(--openpkpd-accent);
+  color: var(--neopkpd-accent);
 }
 
 /* ================================

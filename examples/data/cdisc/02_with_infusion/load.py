@@ -5,7 +5,7 @@ CDISC Infusion Data Import - Python Example
 Run: python load.py
 """
 
-from openpkpd.data import load_cdisc
+from neopkpd.data import load_cdisc
 
 
 def main():
@@ -31,12 +31,12 @@ def main():
         duration_str = f"{dose.duration:.1f} h" if dose.duration else "Bolus"
         print(f"  {dose.subject_id}   {dose.amount:6.0f} mg   {duration_str:10s}   {dose.route}")
 
-    # Convert to OpenPKPD format
-    openpkpd_data = data.to_openpkpd()
+    # Convert to NeoPKPD format
+    neopkpd_data = data.to_neopkpd()
 
-    print("\nOpenPKPD Dose Events:")
+    print("\nNeoPKPD Dose Events:")
     print("-" * 50)
-    for subj in openpkpd_data.subjects[:1]:
+    for subj in neopkpd_data.subjects[:1]:
         print(f"Subject {subj.id}:")
         for dose in subj.doses:
             if hasattr(dose, 'duration') and dose.duration:

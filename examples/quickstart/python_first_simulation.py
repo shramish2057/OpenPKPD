@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-OpenPKPD Quickstart - Python
+NeoPKPD Quickstart - Python
 
 Run:
     source packages/python/.venv/bin/activate
     python docs/examples/quickstart/python_first_simulation.py
 """
 
-from openpkpd import simulate, create_model_spec
+from neopkpd import simulate, create_model_spec
 import numpy as np
 
 def main():
-    print("OpenPKPD Quickstart - Python")
+    print("NeoPKPD Quickstart - Python")
     print("=" * 40)
 
     # 1. Create a one-compartment IV bolus model

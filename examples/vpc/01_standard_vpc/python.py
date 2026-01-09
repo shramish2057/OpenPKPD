@@ -5,7 +5,7 @@ Standard VPC - Python Example
 Run: python python.py
 """
 
-from openpkpd import compute_vpc, create_model_spec, create_population_spec, create_observed_data
+from neopkpd import compute_vpc, create_model_spec, create_population_spec, create_observed_data
 import numpy as np
 
 

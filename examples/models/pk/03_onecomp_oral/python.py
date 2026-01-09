@@ -5,7 +5,7 @@ One-Compartment Oral First-Order Absorption - Python Example
 Run: python python.py
 """
 
-from openpkpd import simulate, create_model_spec
+from neopkpd import simulate, create_model_spec
 import numpy as np
 
 

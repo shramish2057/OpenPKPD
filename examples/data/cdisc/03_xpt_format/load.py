@@ -8,7 +8,7 @@ Note: Requires pyreadstat or pandas with SAS support.
 This example demonstrates the API - actual XPT files would be binary.
 """
 
-from openpkpd.data import load_cdisc_xpt
+from neopkpd.data import load_cdisc_xpt
 
 
 def main():
@@ -19,7 +19,7 @@ def main():
     print("\nAPI Usage:")
     print("-" * 50)
     print("""
-    from openpkpd.data import load_cdisc_xpt
+    from neopkpd.data import load_cdisc_xpt
 
     # Load from XPT files (SAS transport format)
     data = load_cdisc_xpt(
@@ -33,8 +33,8 @@ def main():
     print(f"Subjects: {len(data.subjects)}")
     print(f"Observations: {len(data.observations)}")
 
-    # Convert to OpenPKPD format
-    openpkpd_data = data.to_openpkpd()
+    # Convert to NeoPKPD format
+    neopkpd_data = data.to_neopkpd()
     """)
 
     # XPT vs CSV comparison

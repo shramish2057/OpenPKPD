@@ -1,11 +1,11 @@
 # NONMEM Migration Workflow
-# Demonstrates converting a NONMEM model to OpenPKPD format
+# Demonstrates converting a NONMEM model to NeoPKPD format
 # Run: julia --project=packages/core docs/examples/use_cases/nonmem_migration/run.jl
 
 using Pkg
 Pkg.activate("packages/core")
 
-using OpenPKPDCore
+using NeoPKPDCore
 using JSON
 using Statistics
 using DelimitedFiles
@@ -50,10 +50,10 @@ function parse_nonmem_model()
 end
 
 # ============================================================================
-# Step 2: Map to OpenPKPD Model
+# Step 2: Map to NeoPKPD Model
 # ============================================================================
 
-function map_advan_to_openpkpd(advan::String)
+function map_advan_to_neopkpd(advan::String)
     mapping = Dict(
         "ADVAN1" => OneCompIVBolus,
         "ADVAN2" => OneCompOralFirstOrder,
@@ -63,12 +63,12 @@ function map_advan_to_openpkpd(advan::String)
     return mapping[advan]
 end
 
-function convert_to_openpkpd(nm_model::Dict)
-    println("\nStep 2: Converting to OpenPKPD format...")
+function convert_to_neopkpd(nm_model::Dict)
+    println("\nStep 2: Converting to NeoPKPD format...")
 
     # Map model type
-    model_type = map_advan_to_openpkpd(nm_model["subroutine"])
-    println("  OpenPKPD model: $model_type")
+    model_type = map_advan_to_neopkpd(nm_model["subroutine"])
+    println("  NeoPKPD model: $model_type")
 
     # Extract typical values
     typical_cl = nm_model["thetas"][1]["init"]
@@ -87,14 +87,14 @@ function convert_to_openpkpd(nm_model::Dict)
     println("  IIV V (CV): $(round(omega_v * 100, digits=0))%")
     println("  IIV Ka (CV): $(round(omega_ka * 100, digits=0))%")
 
-    openpkpd_model = Dict(
+    neopkpd_model = Dict(
         "model_type" => model_type,
         "typical" => Dict(:Ka => typical_ka, :CL => typical_cl, :V => typical_v),
         "omega" => Dict(:Ka => omega_ka, :CL => omega_cl, :V => omega_v),
         "covariates" => nm_model["covariates"]
     )
 
-    return openpkpd_model
+    return neopkpd_model
 end
 
 # ============================================================================
@@ -137,11 +137,11 @@ function load_data()
 end
 
 # ============================================================================
-# Step 4: Simulate with OpenPKPD
+# Step 4: Simulate with NeoPKPD
 # ============================================================================
 
-function simulate_openpkpd(op_model::Dict, subjects::Dict)
-    println("\nStep 4: Running OpenPKPD population simulation...")
+function simulate_neopkpd(op_model::Dict, subjects::Dict)
+    println("\nStep 4: Running NeoPKPD population simulation...")
 
     # Mean dose
     mean_dose = mean([s["dose"] for s in values(subjects)])
@@ -254,7 +254,7 @@ function generate_report(nm_model::Dict, op_model::Dict, comparison::Dict)
             "n_omegas" => length(nm_model["omegas"])
         ),
         "target" => Dict(
-            "format" => "OpenPKPD",
+            "format" => "NeoPKPD",
             "model_type" => string(op_model["model_type"]),
             "parameters" => Dict(
                 "Ka" => op_model["typical"][:Ka],
@@ -285,20 +285,20 @@ end
 
 function main()
     println("=" ^ 60)
-    println("NONMEM to OpenPKPD Migration")
+    println("NONMEM to NeoPKPD Migration")
     println("=" ^ 60)
 
     # Step 1: Parse NONMEM model
     nm_model = parse_nonmem_model()
 
-    # Step 2: Convert to OpenPKPD
-    op_model = convert_to_openpkpd(nm_model)
+    # Step 2: Convert to NeoPKPD
+    op_model = convert_to_neopkpd(nm_model)
 
     # Step 3: Load data
     subjects = load_data()
 
-    # Step 4: Simulate with OpenPKPD
-    pop, grid, solver, result = simulate_openpkpd(op_model, subjects)
+    # Step 4: Simulate with NeoPKPD
+    pop, grid, solver, result = simulate_neopkpd(op_model, subjects)
 
     # Step 5: Compare results
     comparison = compare_results(result)

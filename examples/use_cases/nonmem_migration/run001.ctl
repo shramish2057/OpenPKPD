@@ -1,5 +1,5 @@
 $PROBLEM THEOPHYLLINE PK - ORAL ONE COMPARTMENT
-; Migration example for OpenPKPD
+; Migration example for NeoPKPD
 
 $DATA theo_sd.csv IGNORE=@
 $INPUT ID TIME DV AMT EVID CMT WT

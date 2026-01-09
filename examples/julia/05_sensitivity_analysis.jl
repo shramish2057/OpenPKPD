@@ -4,9 +4,9 @@
 # how parameter changes affect model outputs.
 
 using Pkg
-Pkg.activate(joinpath(@__DIR__, "..", "..", "..", "core", "OpenPKPDCore"))
+Pkg.activate(joinpath(@__DIR__, "..", "..", "..", "core", "NeoPKPDCore"))
 
-using OpenPKPDCore
+using NeoPKPDCore
 
 # Base model
 params = OneCompOralFirstOrderParams(1.5, 5.0, 50.0)  # Ka, CL, V

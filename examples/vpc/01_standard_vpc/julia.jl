@@ -1,7 +1,7 @@
 # Standard VPC - Julia Example
-# Run: julia --project=core/OpenPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPDCore julia.jl
 
-using OpenPKPDCore
+using NeoPKPDCore
 
 println("Standard Visual Predictive Check (VPC)")
 println("="^50)

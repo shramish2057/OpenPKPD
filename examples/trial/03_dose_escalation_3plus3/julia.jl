@@ -1,7 +1,7 @@
 # 3+3 Dose Escalation - Julia Example
-# Run: julia --project=core/OpenPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPDCore julia.jl
 
-using OpenPKPDCore
+using NeoPKPDCore
 
 println("3+3 Dose Escalation Study")
 println("="^50)

@@ -6,8 +6,8 @@ Run: python python.py
 """
 
 import os
-from openpkpd import estimate, create_model_spec, create_observed_data
-from openpkpd.estimation import EstimationConfig, FOCEI
+from neopkpd import estimate, create_model_spec, create_observed_data
+from neopkpd.estimation import EstimationConfig, FOCEI
 import pandas as pd
 import numpy as np
 

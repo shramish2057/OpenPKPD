@@ -5,8 +5,8 @@ Concentration-Time Plot - Python Example
 Run: python plot.py
 """
 
-from openpkpd import simulate, create_model_spec
-from openpkpd.viz import plot_concentration_time
+from neopkpd import simulate, create_model_spec
+from neopkpd.viz import plot_concentration_time
 import matplotlib.pyplot as plt
 
 

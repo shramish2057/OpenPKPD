@@ -1,7 +1,7 @@
 # Static Covariates - Julia Example
-# Run: julia --project=core/OpenPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPDCore julia.jl
 
-using OpenPKPDCore
+using NeoPKPDCore
 using Random
 
 println("Static Covariates (Weight, Age)")
