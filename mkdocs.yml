@@ -239,6 +239,8 @@ plugins:
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - md_in_html
   - pymdownx.details
   - pymdownx.superfences
   - pymdownx.emoji:
@@ -254,8 +256,6 @@ markdown_extensions:
       alternate_style: true
   - pymdownx.arithmatex:
       generic: true
-  - attr_list
-  - md_in_html
   - tables
   - footnotes
   - toc:
