@@ -156,6 +156,10 @@ nav:
       - Dosing Regimens: python/trial/dosing.md
       - Virtual Population: python/trial/population.md
       - Power Analysis: python/trial/power.md
+    - Visual Predictive Check:
+      - python/vpc/index.md
+      - Binning Strategies: python/vpc/binning.md
+      - BLQ Handling: python/vpc/blq.md
     - Parameter Estimation:
       - python/estimation/index.md
       - FOCE-I Method: python/estimation/foce.md

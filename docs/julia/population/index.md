@@ -62,14 +62,6 @@ graph LR
 
     [:octicons-arrow-right-24: Residual Error](residual-error.md)
 
--   :material-run:{ .lg .middle } **Population Simulation**
-
-    ---
-
-    Simulating virtual populations
-
-    [:octicons-arrow-right-24: Simulation](simulation.md)
-
 </div>
 
 ---
