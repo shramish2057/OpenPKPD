@@ -240,11 +240,7 @@ plugins:
 markdown_extensions:
   - admonition
   - pymdownx.details
-  - pymdownx.superfences:
-      custom_fences:
-        - name: mermaid
-          class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.superfences
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
@@ -264,7 +260,7 @@ markdown_extensions:
       toc_depth: 3
 
 extra_javascript:
-  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://unpkg.com/mermaid@10/dist/mermaid.esm.min.mjs
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 extra_css:
