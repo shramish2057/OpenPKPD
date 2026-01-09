@@ -38,7 +38,7 @@ NCA calculations follow FDA/EMA guidelines. VPC and diagnostic plots meet regula
 
 <div class="grid cards" markdown>
 
--   :fontawesome-brands-julia:{ .lg .middle } **Julia Documentation**
+-   :simple-julia:{ .lg .middle } **Julia Documentation**
 
     ---
 
@@ -46,7 +46,7 @@ NCA calculations follow FDA/EMA guidelines. VPC and diagnostic plots meet regula
 
     [:octicons-arrow-right-24: Julia Docs](../julia/index.md)
 
--   :fontawesome-brands-python:{ .lg .middle } **Python Documentation**
+-   :material-language-python:{ .lg .middle } **Python Documentation**
 
     ---
 
