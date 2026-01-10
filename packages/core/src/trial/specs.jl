@@ -899,6 +899,23 @@ function validate_trial_spec(spec::TrialSpec; strict::Bool = false)::TrialValida
             end
         end
 
+        # Unimplemented adaptive features - reject with clear error
+        unimplemented_features = [
+            (:platform_trial, "Platform/umbrella trials"),
+            (:basket_trial, "Basket trials"),
+            (:seamless_phase2_3, "Seamless Phase II/III designs"),
+            (:mams, "Multi-arm multi-stage (MAMS) designs"),
+            (:dose_response_adaptive, "Adaptive dose-response modeling"),
+            (:rolling_admission, "Rolling admission adaptive designs")
+        ]
+
+        for (feature_key, feature_name) in unimplemented_features
+            if haskey(adaptation_rules, feature_key) && adaptation_rules[feature_key] == true
+                push!(errors, "$feature_name not yet implemented. " *
+                              "Please use standard adaptive features (RAR, SSR, treatment selection, enrichment).")
+            end
+        end
+
         # Validate alpha spending function
         valid_spending = [:obrien_fleming, :pocock, :haybittle_peto, :linear, :none]
         if !(spec.design.alpha_spending in valid_spending)

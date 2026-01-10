@@ -524,19 +524,34 @@
             arm = TreatmentArm("Treatment", model_spec, regimen; n_subjects=50)
 
             base = parallel_design(2)
-            adaptive = AdaptiveDesign(base;
+
+            # Test platform trial (unimplemented)
+            adaptive_platform = AdaptiveDesign(base;
                 interim_analyses = [0.5],
                 adaptation_rules = Dict{Symbol, Any}(
-                    :response_adaptive_randomization => true
+                    :platform_trial => true
                 )
             )
 
-            trial = TrialSpec("RAR Trial", adaptive, [arm, arm])
+            trial_platform = TrialSpec("Platform Trial", adaptive_platform, [arm, arm])
+            result_platform = validate_trial_spec(trial_platform)
 
-            result = validate_trial_spec(trial)
+            @test result_platform.valid == false
+            @test any(contains(e, "Platform/umbrella trials") for e in result_platform.errors)
 
-            @test result.valid == false
-            @test any(contains(e, "Response-adaptive randomization") for e in result.errors)
+            # Test basket trial (unimplemented)
+            adaptive_basket = AdaptiveDesign(base;
+                interim_analyses = [0.5],
+                adaptation_rules = Dict{Symbol, Any}(
+                    :basket_trial => true
+                )
+            )
+
+            trial_basket = TrialSpec("Basket Trial", adaptive_basket, [arm, arm])
+            result_basket = validate_trial_spec(trial_basket)
+
+            @test result_basket.valid == false
+            @test any(contains(e, "Basket trials") for e in result_basket.errors)
         end
 
         @testset "Strict Mode Warnings" begin
