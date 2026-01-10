@@ -1,28 +1,39 @@
 # neopkpd
 
-**Python bindings for NeoPKPD pharmacometric simulations**
+[![PyPI version](https://badge.fury.io/py/neopkpd.svg)](https://badge.fury.io/py/neopkpd)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-The `neopkpd` Python package provides a comprehensive interface to the NeoPKPD Julia simulation engine, enabling seamless integration with Python data science workflows.
+**Transparent, validated pharmacokinetics and pharmacodynamics modeling infrastructure**
+
+The `neopkpd` Python package provides a comprehensive interface to the NeoPKPDCore Julia simulation engine, enabling seamless integration with Python data science workflows.
 
 ## Installation
 
+### From PyPI (Recommended)
+
 ```bash
-cd packages/python
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+pip install neopkpd
 
 # With visualization support
-pip install -e ".[viz]"
+pip install neopkpd[viz]
 
 # With all optional dependencies
+pip install neopkpd[all]
+```
+
+### From Source
+
+```bash
+git clone https://github.com/shramish2057/openpkpd.git
+cd openpkpd/packages/python
 pip install -e ".[all]"
 ```
 
 **Requirements:**
 - Python 3.10+
-- Julia 1.10+ (installed and in PATH)
-- juliacall (installed automatically)
+- Julia 1.10+ (automatically managed via juliacall)
+- numpy, scipy (installed automatically)
 
 ## Quick Start
 
@@ -358,6 +369,20 @@ source .venv/bin/activate
 pytest tests/
 ```
 
+## Documentation
+
+Full documentation: [shramish2057.github.io/NeoPKPD](https://shramish2057.github.io/NeoPKPD/)
+
 ## License
 
-MIT License - see repository root for details.
+MIT License - see [LICENSE](https://github.com/shramish2057/openpkpd/blob/main/LICENSE) for details.
+
+## Citation
+
+```bibtex
+@software{neopkpd,
+  title = {NeoPKPD: Transparent PK/PD Modeling Infrastructure},
+  url = {https://github.com/shramish2057/openpkpd},
+  version = {0.1.0}
+}
+```
