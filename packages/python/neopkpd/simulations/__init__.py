@@ -62,6 +62,15 @@ from .sensitivity import (
     run_sensitivity,
 )
 
+from .gsa import (
+    run_sobol_sensitivity,
+    run_morris_sensitivity,
+    SobolResult,
+    SobolIndex,
+    MorrisResult,
+    MorrisIndex,
+)
+
 
 __all__ = [
     # One-compartment PK
@@ -98,6 +107,13 @@ __all__ = [
     # Population
     "simulate_population_iv_bolus",
     "simulate_population_oral",
-    # Sensitivity
+    # Sensitivity (Local)
     "run_sensitivity",
+    # Global Sensitivity Analysis
+    "run_sobol_sensitivity",
+    "run_morris_sensitivity",
+    "SobolResult",
+    "SobolIndex",
+    "MorrisResult",
+    "MorrisIndex",
 ]

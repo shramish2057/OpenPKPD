@@ -58,6 +58,100 @@ class PopulationSensitivityResult:
 
 
 # ============================================================================
+# Global Sensitivity Analysis Data Classes
+# ============================================================================
+
+@dataclass(frozen=True)
+class SobolIndex:
+    """
+    Sobol' sensitivity indices for a single parameter.
+
+    Attributes:
+        Si: First-order index (main effect)
+        Si_ci_lower: Lower bound of 95% CI for Si
+        Si_ci_upper: Upper bound of 95% CI for Si
+        STi: Total-order index (including interactions)
+        STi_ci_lower: Lower bound of 95% CI for STi
+        STi_ci_upper: Upper bound of 95% CI for STi
+
+    Interpretation:
+        - Si ~ 0: Parameter has negligible main effect
+        - Si ~ 1: Parameter explains almost all variance
+        - STi - Si > 0: Parameter has significant interactions
+    """
+    Si: float
+    Si_ci_lower: float
+    Si_ci_upper: float
+    STi: float
+    STi_ci_lower: float
+    STi_ci_upper: float
+
+
+@dataclass(frozen=True)
+class SobolResult:
+    """
+    Complete result from Sobol' sensitivity analysis.
+
+    Attributes:
+        params: Parameter names in analysis order
+        indices: Dict mapping parameter name to SobolIndex
+        n_evaluations: Total number of model evaluations
+        convergence_metric: Sum of first-order indices (should be <= 1)
+        output_variance: Total variance of model output
+        computation_time: Wall-clock time in seconds
+        metadata: Additional analysis metadata
+    """
+    params: List[str]
+    indices: Dict[str, SobolIndex]
+    n_evaluations: int
+    convergence_metric: float
+    output_variance: float
+    computation_time: float
+    metadata: Dict[str, Any]
+
+
+@dataclass(frozen=True)
+class MorrisIndex:
+    """
+    Morris Elementary Effects indices for a single parameter.
+
+    Attributes:
+        mu: Mean elementary effect (signed)
+        mu_star: Mean absolute elementary effect (importance)
+        sigma: Standard deviation (interactions/nonlinearity)
+
+    Interpretation:
+        - mu_star large: Parameter is important
+        - mu ~ 0 but mu_star large: Non-monotonic effect
+        - sigma large: Nonlinear or interacting effects
+    """
+    mu: float
+    mu_star: float
+    sigma: float
+
+
+@dataclass(frozen=True)
+class MorrisResult:
+    """
+    Complete result from Morris screening analysis.
+
+    Attributes:
+        params: Parameter names in analysis order
+        indices: Dict mapping parameter name to MorrisIndex
+        elementary_effects: Raw EEs for each parameter
+        n_evaluations: Total number of model evaluations
+        computation_time: Wall-clock time in seconds
+        metadata: Additional analysis metadata
+    """
+    params: List[str]
+    indices: Dict[str, MorrisIndex]
+    elementary_effects: Dict[str, List[float]]
+    n_evaluations: int
+    computation_time: float
+    metadata: Dict[str, Any]
+
+
+# ============================================================================
 # Initialization
 # ============================================================================
 

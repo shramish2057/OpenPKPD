@@ -76,9 +76,14 @@ include("test_helpers.jl")
         include("test_population.jl")
     end
 
-    # Sensitivity analysis
+    # Sensitivity analysis (Local)
     @testset "Sensitivity Analysis" begin
         include("test_sensitivity.jl")
+    end
+
+    # Global Sensitivity Analysis (Sobol', Morris)
+    @testset "Global Sensitivity Analysis" begin
+        include("test_gsa.jl")
     end
 
     # IOV and covariates

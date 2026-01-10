@@ -65,7 +65,7 @@ include("engine/solver_semantics.jl")
 include("engine/semantics_fingerprint.jl")
 
 # ------------------------------------------------------------------
-# Perturbation + sensitivity core
+# Perturbation + sensitivity core (local)
 # ------------------------------------------------------------------
 include("engine/perturb.jl")
 include("engine/sensitivity_metrics.jl")
@@ -140,6 +140,18 @@ include("analysis/vpc.jl")
 # FOCE-I, SAEM, Laplacian methods
 # ------------------------------------------------------------------
 include("estimation/estimation.jl")
+
+# ------------------------------------------------------------------
+# Global Sensitivity Analysis (Sobol', Morris)
+# Requires estimation/parallel.jl for ParallelConfig
+# ------------------------------------------------------------------
+include("engine/sensitivity_sampling.jl")
+include("engine/sensitivity_sobol.jl")
+include("engine/sensitivity_morris.jl")
+
+# GSA Serialization (after GSA types are defined)
+include("serialization/serialize_gsa.jl")
+include("serialization/deserialize_gsa.jl")
 
 # ------------------------------------------------------------------
 # Residuals (CWRES, IWRES, NPDE)

@@ -66,6 +66,11 @@ from ._core import (
     SensitivityMetrics,
     SensitivityResult,
     PopulationSensitivityResult,
+    # Global Sensitivity Analysis types
+    SobolIndex,
+    SobolResult,
+    MorrisIndex,
+    MorrisResult,
 )
 
 # Artifact operations
@@ -141,9 +146,15 @@ from .simulations.population import (
     simulate_population_oral,
 )
 
-# Simulations - Sensitivity
+# Simulations - Sensitivity (Local)
 from .simulations.sensitivity import (
     run_sensitivity,
+)
+
+# Simulations - Global Sensitivity Analysis
+from .simulations.gsa import (
+    run_sobol_sensitivity,
+    run_morris_sensitivity,
 )
 
 # NCA - Non-Compartmental Analysis
@@ -285,10 +296,15 @@ __all__ = [
     "init_julia",
     "version",
 
-    # Data classes
+    # Data classes - Local Sensitivity
     "SensitivityMetrics",
     "SensitivityResult",
     "PopulationSensitivityResult",
+    # Data classes - Global Sensitivity Analysis
+    "SobolIndex",
+    "SobolResult",
+    "MorrisIndex",
+    "MorrisResult",
 
     # Artifacts
     "replay_artifact",
@@ -321,8 +337,11 @@ __all__ = [
     "simulate_population_iv_bolus",
     "simulate_population_oral",
 
-    # Sensitivity
+    # Sensitivity - Local
     "run_sensitivity",
+    # Sensitivity - Global (Sobol', Morris)
+    "run_sobol_sensitivity",
+    "run_morris_sensitivity",
 
     # Metrics
     "cmax",
