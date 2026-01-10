@@ -3,6 +3,8 @@
 #
 # FDA 21 CFR 11.10(h): "...procedures... validation of data input"
 
+using JSON
+
 export SchemaValidationResult, SchemaValidationError
 export validate_artifact_schema, get_schema_definition
 export SCHEMA_REGISTRY
@@ -380,6 +382,16 @@ function _validate_section(
             end
         end
     end
+end
+
+# Overload for JSON.Object to convert to Dict
+function _validate_section(
+    data::JSON.Object,
+    schema::Dict,
+    path::String,
+    errors::Vector{SchemaValidationError}
+)
+    _validate_section(Dict{String,Any}(data), schema, path, errors)
 end
 
 """

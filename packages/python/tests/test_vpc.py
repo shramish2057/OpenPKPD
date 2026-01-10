@@ -356,7 +356,7 @@ class TestVPCJulia:
     def julia_initialized(self):
         """Check if Julia is available."""
         try:
-            from neopkpd._julia_bridge import get_julia
+            from neopkpd.bridge import get_julia
             get_julia()
             return True
         except Exception:

@@ -198,7 +198,7 @@ class AdaptiveTrialResult:
 def _get_julia():
     """Get the Julia connection from neopkpd."""
     try:
-        from neopkpd._julia_bridge import get_julia
+        from neopkpd.bridge import get_julia
         return get_julia()
     except ImportError:
         raise RuntimeError(
@@ -212,6 +212,14 @@ def _to_julia_float_vec(jl, py_list: List[float]):
     vec = jl.seval("Float64[]")
     for x in py_list:
         jl.seval("push!")(vec, float(x))
+    return vec
+
+
+def _to_julia_vec(jl, py_list: list, elem_type) -> Any:
+    """Convert Python list to Julia Vector of the specified element type."""
+    vec = jl.Vector[elem_type](jl.undef, len(py_list))
+    for i, item in enumerate(py_list):
+        vec[i] = item  # PythonCall uses 0-based indexing from Python
     return vec
 
 
@@ -269,67 +277,66 @@ def simulate_subject_exposure(
     """
     jl = _get_julia()
 
-    # Build model spec
-    model_map = {
-        'OneCompIVBolus': 'OneCompartmentIVBolus',
-        'OneCompOral': 'OneCompartmentOral',
-        'TwoCompIVBolus': 'TwoCompartmentIVBolus',
-        'TwoCompOral': 'TwoCompartmentOral',
-    }
-    jl_model_name = model_map.get(model_kind, model_kind)
-
     # Default parameters if not provided
     if pk_params is None:
         pk_params = {'CL': 10.0, 'V': 50.0}
 
-    # Build Julia model spec
-    if jl_model_name == 'OneCompartmentIVBolus':
-        pk_model = jl.NeoPKPDCore.OneCompartmentIVBolus()
-        pk_params_jl = jl.NeoPKPDCore.OneCompartmentIVBolusParams(
-            CL=pk_params.get('CL', 10.0),
-            V=pk_params.get('V', 50.0)
+    # Build Julia model spec - use correct Julia type names
+    if model_kind == 'OneCompIVBolus':
+        pk_model = jl.NeoPKPDCore.OneCompIVBolus()
+        pk_params_jl = jl.NeoPKPDCore.OneCompIVBolusParams(
+            float(pk_params.get('CL', 10.0)),
+            float(pk_params.get('V', 50.0))
         )
-    elif jl_model_name == 'OneCompartmentOral':
-        pk_model = jl.NeoPKPDCore.OneCompartmentOral()
-        pk_params_jl = jl.NeoPKPDCore.OneCompartmentOralParams(
-            CL=pk_params.get('CL', 10.0),
-            V=pk_params.get('V', 50.0),
-            Ka=pk_params.get('Ka', 1.0),
-            F=pk_params.get('F', 1.0)
+    elif model_kind in ['OneCompOral', 'OneCompOralFirstOrder']:
+        pk_model = jl.NeoPKPDCore.OneCompOralFirstOrder()
+        pk_params_jl = jl.NeoPKPDCore.OneCompOralFirstOrderParams(
+            float(pk_params.get('Ka', 1.0)),
+            float(pk_params.get('CL', 10.0)),
+            float(pk_params.get('V', 50.0))
         )
-    elif jl_model_name == 'TwoCompartmentIVBolus':
-        pk_model = jl.NeoPKPDCore.TwoCompartmentIVBolus()
-        pk_params_jl = jl.NeoPKPDCore.TwoCompartmentIVBolusParams(
-            CL=pk_params.get('CL', 10.0),
-            V1=pk_params.get('V1', 50.0),
-            Q=pk_params.get('Q', 5.0),
-            V2=pk_params.get('V2', 100.0)
+    elif model_kind == 'TwoCompIVBolus':
+        pk_model = jl.NeoPKPDCore.TwoCompIVBolus()
+        pk_params_jl = jl.NeoPKPDCore.TwoCompIVBolusParams(
+            float(pk_params.get('CL', 10.0)),
+            float(pk_params.get('V1', 50.0)),
+            float(pk_params.get('Q', 5.0)),
+            float(pk_params.get('V2', 100.0))
         )
-    elif jl_model_name == 'TwoCompartmentOral':
-        pk_model = jl.NeoPKPDCore.TwoCompartmentOral()
-        pk_params_jl = jl.NeoPKPDCore.TwoCompartmentOralParams(
-            CL=pk_params.get('CL', 10.0),
-            V1=pk_params.get('V1', 50.0),
-            Q=pk_params.get('Q', 5.0),
-            V2=pk_params.get('V2', 100.0),
-            Ka=pk_params.get('Ka', 1.0),
-            F=pk_params.get('F', 1.0)
+    elif model_kind == 'TwoCompOral':
+        pk_model = jl.NeoPKPDCore.TwoCompOral()
+        pk_params_jl = jl.NeoPKPDCore.TwoCompOralParams(
+            float(pk_params.get('Ka', 1.0)),
+            float(pk_params.get('CL', 10.0)),
+            float(pk_params.get('V1', 50.0)),
+            float(pk_params.get('Q', 5.0)),
+            float(pk_params.get('V2', 100.0))
         )
     else:
         raise ValueError(f"Unknown model kind: {model_kind}")
 
-    model_spec = jl.NeoPKPDCore.PKOnlySpec(pk_model, pk_params_jl)
-
-    # Build dosing events
-    doses = jl.seval("NeoPKPDCore.DoseEvent[]")
+    # Build dosing events as Julia vector
+    doses_list = []
     for dose in dose_events:
         dose_event = jl.NeoPKPDCore.DoseEvent(
             float(dose['time']),
             float(dose['amount']),
-            float(dose.get('rate', 0.0)),
-            int(dose.get('compartment', 1))
+            float(dose.get('duration', dose.get('rate', 0.0)))  # duration for infusion
         )
-        jl.seval("push!")(doses, dose_event)
+        doses_list.append(dose_event)
+
+    # Convert to Julia Vector{DoseEvent}
+    DoseEvent = jl.NeoPKPDCore.DoseEvent
+    doses = _to_julia_vec(jl, doses_list, DoseEvent)
+
+    # Build ModelSpec with doses
+    subject_id = subject.get('id', '1') if subject else '1'
+    model_spec = jl.NeoPKPDCore.ModelSpec(
+        pk_model,
+        f"subject_{subject_id}",
+        pk_params_jl,
+        doses
+    )
 
     # Build observation times
     obs_times = _to_julia_float_vec(jl, observation_times)
@@ -358,18 +365,20 @@ def simulate_subject_exposure(
         )
 
     # Run simulation
-    result = jl.NeoPKPDCore.simulate(model_spec, doses, grid=grid_jl, solver=solver_jl)
+    result = jl.NeoPKPDCore.simulate(model_spec, grid_jl, solver_jl)
 
-    # Extract results
-    times = np.array([float(t) for t in result.times])
-    concentrations = np.array([float(c) for c in result.concentrations])
+    # Extract results - SimResult has t, observations, and states
+    times = np.array([float(t) for t in result.t])
+    # Get concentration from observations (typically 'conc')
+    conc_obs = result.observations[jl.Symbol("conc")]
+    concentrations = np.array([float(c) for c in conc_obs])
 
     # Calculate PK metrics
     pk_metrics = {}
     if len(concentrations) > 0:
         pk_metrics['cmax'] = float(np.max(concentrations))
         pk_metrics['tmax'] = float(times[np.argmax(concentrations)])
-        pk_metrics['auc_0_last'] = float(np.trapz(concentrations, times))
+        pk_metrics['auc_0_last'] = float(np.trapezoid(concentrations, times))
 
         # Calculate half-life from terminal phase if enough points
         if len(concentrations) >= 3:
@@ -1661,7 +1670,7 @@ def calculate_pk_metrics(
     try:
         metrics['auc_0_last'] = float(np.trapezoid(c, t))
     except AttributeError:
-        metrics['auc_0_last'] = float(np.trapz(c, t))
+        metrics['auc_0_last'] = float(np.trapezoid(c, t))
 
     # Terminal elimination rate constant and half-life
     # Use last 3 points in terminal phase

@@ -113,11 +113,25 @@ Returns a NamedTuple:
 - pd_spec (may be nothing)
 """
 function deserialize_population_execution(artifact::Dict)
-    schema = String(artifact["artifact_schema_version"])
-    if schema != ARTIFACT_SCHEMA_VERSION
-        error(
-            "Unsupported artifact schema version: $(schema). Expected: $(ARTIFACT_SCHEMA_VERSION)",
-        )
+    schema = get(artifact, "artifact_schema_version", "1.0.0")
+    schema_str = String(schema)
+
+    # Handle backward compatibility via migration
+    if schema_str != ARTIFACT_SCHEMA_VERSION
+        if can_migrate(schema_str, ARTIFACT_SCHEMA_VERSION)
+            migration_result = migrate_artifact(artifact)
+            if migration_result.success
+                artifact = migration_result.migrated_artifact
+            else
+                error(
+                    "Failed to migrate artifact from $(schema_str) to $(ARTIFACT_SCHEMA_VERSION): $(join(migration_result.errors, "; "))"
+                )
+            end
+        else
+            error(
+                "Unsupported artifact schema version: $(schema_str). Expected: $(ARTIFACT_SCHEMA_VERSION). No migration path available.",
+            )
+        end
     end
 
     if haskey(artifact, "artifact_type")

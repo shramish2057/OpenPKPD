@@ -797,7 +797,7 @@ def compute_vpc_python(
 def _get_julia():
     """Get the Julia connection from neopkpd."""
     try:
-        from neopkpd._julia_bridge import get_julia
+        from neopkpd.bridge import get_julia
         return get_julia()
     except ImportError:
         raise RuntimeError(
@@ -808,21 +808,32 @@ def _get_julia():
 
 def _build_observed_data(jl, data: Dict[str, Any]):
     """Build ObservedData from Python dict."""
+    from ..bridge import _to_julia_vector, _to_julia_float_vector
+
     SubjectData = jl.NeoPKPDCore.SubjectData
     ObservedData = jl.NeoPKPDCore.ObservedData
     DoseEvent = jl.NeoPKPDCore.DoseEvent
 
     subjects = []
     for subj in data["subjects"]:
-        doses = [DoseEvent(float(d["time"]), float(d["amount"])) for d in subj.get("doses", [])]
+        # Convert doses to Julia vector
+        doses_list = [DoseEvent(float(d["time"]), float(d["amount"])) for d in subj.get("doses", [])]
+        doses_vec = _to_julia_vector(jl, doses_list, DoseEvent)
+
+        # Convert times and observations to Julia Float64 vectors
+        times_vec = _to_julia_float_vector(jl, subj["times"])
+        obs_vec = _to_julia_float_vector(jl, subj["observations"])
+
         subjects.append(SubjectData(
             subj["subject_id"],
-            [float(t) for t in subj["times"]],
-            [float(o) for o in subj["observations"]],
-            doses
+            times_vec,
+            obs_vec,
+            doses_vec
         ))
 
-    return ObservedData(subjects)
+    # Convert subjects list to Julia Vector{SubjectData}
+    subjects_vec = _to_julia_vector(jl, subjects, SubjectData)
+    return ObservedData(subjects_vec)
 
 
 def _build_population_spec(jl, spec: Dict[str, Any]):
@@ -844,51 +855,68 @@ def _build_population_spec(jl, spec: Dict[str, Any]):
     params = model["params"]
 
     if kind_str == "OneCompIVBolus":
-        pk_model = jl.NeoPKPDCore.OneCompartmentIVBolus()
-        model_params = jl.NeoPKPDCore.OneCompartmentIVBolusParams(
-            CL=float(params["CL"]),
-            V=float(params["V"])
+        pk_model = jl.NeoPKPDCore.OneCompIVBolus()
+        model_params = jl.NeoPKPDCore.OneCompIVBolusParams(
+            float(params["CL"]),
+            float(params["V"])
         )
     elif kind_str in ["OneCompOral", "OneCompOralFirstOrder"]:
-        pk_model = jl.NeoPKPDCore.OneCompartmentOral()
-        model_params = jl.NeoPKPDCore.OneCompartmentOralParams(
-            CL=float(params["CL"]),
-            V=float(params["V"]),
-            Ka=float(params["Ka"]),
-            F=float(params.get("F", 1.0))
+        pk_model = jl.NeoPKPDCore.OneCompOralFirstOrder()
+        model_params = jl.NeoPKPDCore.OneCompOralFirstOrderParams(
+            float(params.get("Ka", 1.0)),
+            float(params["CL"]),
+            float(params["V"])
         )
     elif kind_str == "TwoCompIVBolus":
-        pk_model = jl.NeoPKPDCore.TwoCompartmentIVBolus()
-        model_params = jl.NeoPKPDCore.TwoCompartmentIVBolusParams(
-            CL=float(params["CL"]),
-            V1=float(params["V1"]),
-            Q=float(params["Q"]),
-            V2=float(params["V2"])
+        pk_model = jl.NeoPKPDCore.TwoCompIVBolus()
+        model_params = jl.NeoPKPDCore.TwoCompIVBolusParams(
+            float(params["CL"]),
+            float(params["V1"]),
+            float(params["Q"]),
+            float(params["V2"])
         )
     elif kind_str == "TwoCompOral":
-        pk_model = jl.NeoPKPDCore.TwoCompartmentOral()
-        model_params = jl.NeoPKPDCore.TwoCompartmentOralParams(
-            CL=float(params["CL"]),
-            V1=float(params["V1"]),
-            Q=float(params["Q"]),
-            V2=float(params["V2"]),
-            Ka=float(params["Ka"]),
-            F=float(params.get("F", 1.0))
+        pk_model = jl.NeoPKPDCore.TwoCompOral()
+        model_params = jl.NeoPKPDCore.TwoCompOralParams(
+            float(params.get("Ka", 1.0)),
+            float(params["CL"]),
+            float(params["V1"]),
+            float(params["Q"]),
+            float(params["V2"])
         )
     else:
         raise ValueError(f"Unsupported model kind: {kind_str}")
 
-    model_spec = jl.NeoPKPDCore.PKOnlySpec(pk_model, model_params)
+    # Build ModelSpec (kind, name, params, doses)
+    model_spec = jl.NeoPKPDCore.ModelSpec(
+        pk_model,
+        model.get("name", "vpc_model"),
+        model_params,
+        doses_vec
+    )
 
     # Build IIV spec
     iiv_spec = spec.get("iiv", {})
-    omegas = {jl.Symbol(k): float(v) for k, v in iiv_spec.get("omegas", {"CL": 0.3}).items()}
+    omegas_py = iiv_spec.get("omegas", {"CL": 0.3})
     n = iiv_spec.get("n", 100)
     seed = iiv_spec.get("seed", 12345)
 
-    iiv = IIVSpec(LogNormalIIV(), omegas, jl.UInt64(seed), n)
+    # Convert Python dict to Julia Dict{Symbol,Float64}
+    omegas = jl.Dict[jl.Symbol, jl.Float64]()
+    for k, v in omegas_py.items():
+        omegas[jl.Symbol(k)] = float(v)
 
-    return PopulationSpec(model_spec, iiv, None, None, [])
+    # Build IIVSpec using Julia constructor directly via seval
+    # This avoids Python-to-Julia type conversion issues
+    jl.NeoPKPDCore.seval("global _temp_omegas")
+    jl.NeoPKPDCore._temp_omegas = omegas
+    iiv = jl.seval(f"NeoPKPDCore.IIVSpec(NeoPKPDCore.LogNormalIIV(), NeoPKPDCore._temp_omegas, UInt64({seed}), {n})")
+
+    # Build empty covariates vector
+    IndividualCovariates = jl.NeoPKPDCore.IndividualCovariates
+    empty_covs = jl.Vector[IndividualCovariates](jl.undef, 0)
+
+    return PopulationSpec(model_spec, iiv, jl.nothing, jl.nothing, empty_covs)
 
 
 def _build_error_spec(jl, spec: Dict[str, Any]):
@@ -1046,6 +1074,9 @@ def compute_vpc(
         for s in config.stratify_by:
             jl.seval("push!")(stratify_vec, jl.Symbol(s))
 
+    # Build seed as UInt64
+    seed_jl = jl.seval(f"UInt64({config.seed})")
+
     vpc_config = jl.NeoPKPDCore.VPCConfig(
         pi_levels=pi_levels,
         ci_level=float(config.ci_level),
@@ -1055,7 +1086,7 @@ def compute_vpc(
         prediction_corrected=config.prediction_corrected,
         stratify_by=stratify_vec,
         lloq=float(config.lloq) if config.lloq else jl.nothing,
-        seed=jl.UInt64(config.seed),
+        seed=seed_jl,
     )
 
     # Build error spec if provided

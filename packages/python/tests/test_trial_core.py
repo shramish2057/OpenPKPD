@@ -19,7 +19,7 @@ class TestSubjectExposure:
     def julia_initialized(self):
         """Initialize Julia."""
         try:
-            from neopkpd._julia_bridge import get_julia
+            from neopkpd.bridge import get_julia
             get_julia()
             return True
         except Exception:
@@ -87,7 +87,7 @@ class TestDoseEscalation:
     def julia_initialized(self):
         """Initialize Julia."""
         try:
-            from neopkpd._julia_bridge import get_julia
+            from neopkpd.bridge import get_julia
             get_julia()
             return True
         except Exception:
@@ -334,7 +334,7 @@ class TestIntegrationWorkflow:
     def julia_initialized(self):
         """Initialize Julia."""
         try:
-            from neopkpd._julia_bridge import get_julia
+            from neopkpd.bridge import get_julia
             get_julia()
             return True
         except Exception:
@@ -428,7 +428,7 @@ class TestCRMDoseEscalation:
     def julia_initialized(self):
         """Initialize Julia."""
         try:
-            from neopkpd._julia_bridge import get_julia
+            from neopkpd.bridge import get_julia
             get_julia()
             return True
         except Exception:
@@ -485,7 +485,7 @@ class TestModelConnectedTrial:
     def julia_initialized(self):
         """Initialize Julia."""
         try:
-            from neopkpd._julia_bridge import get_julia
+            from neopkpd.bridge import get_julia
             get_julia()
             return True
         except Exception:

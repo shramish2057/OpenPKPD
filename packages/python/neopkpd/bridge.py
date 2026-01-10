@@ -98,9 +98,13 @@ def _detect_repo_root(start: Optional[Path] = None) -> Path:
     """Detect the NeoPKPD repository root directory."""
     here = (start or Path(__file__)).resolve()
     for p in [here] + list(here.parents):
+        # Check for packages/core/Project.toml (current structure)
+        if (p / "packages" / "core" / "Project.toml").exists():
+            return p
+        # Legacy: check for core/NeoPKPDCore/Project.toml
         if (p / "core" / "NeoPKPDCore" / "Project.toml").exists():
             return p
-    raise RuntimeError("Could not locate repo root (core/NeoPKPDCore/Project.toml not found).")
+    raise RuntimeError("Could not locate repo root (packages/core/Project.toml not found).")
 
 
 def init_julia(repo_root: Optional[Union[str, Path]] = None) -> None:
@@ -124,7 +128,12 @@ def init_julia(repo_root: Optional[Union[str, Path]] = None) -> None:
         return
 
     root = Path(repo_root).resolve() if repo_root else _detect_repo_root()
-    core_project = root / "core" / "NeoPKPDCore"
+
+    # Determine core project path - try new structure first, then legacy
+    if (root / "packages" / "core" / "Project.toml").exists():
+        core_project = root / "packages" / "core"
+    else:
+        core_project = root / "core" / "NeoPKPDCore"
 
     from juliacall import Main as jl  # type: ignore
 

@@ -2,6 +2,7 @@
 # FDA 21 CFR Part 11 requires assurance that electronic records are complete, accurate, and unaltered
 
 using SHA
+using JSON
 
 export IntegrityMetadata, compute_artifact_hash, compute_content_hash
 export verify_artifact_integrity, IntegrityVerificationResult
@@ -52,6 +53,15 @@ function compute_content_hash(d::Dict)::String
 end
 
 """
+    compute_content_hash(obj::JSON.Object) -> String
+
+Compute SHA-256 hash of a JSON.Object by converting to Dict first.
+"""
+function compute_content_hash(obj::JSON.Object)::String
+    return compute_content_hash(Dict{String,Any}(obj))
+end
+
+"""
     _canonical_json(d::Dict) -> String
 
 Serialize a dictionary to canonical JSON with sorted keys.
@@ -61,6 +71,10 @@ function _canonical_json(d::Dict)::String
     io = IOBuffer()
     _write_canonical_json(io, d)
     return String(take!(io))
+end
+
+function _canonical_json(obj::JSON.Object)::String
+    return _canonical_json(Dict{String,Any}(obj))
 end
 
 function _write_canonical_json(io::IO, d::Dict)
@@ -75,6 +89,10 @@ function _write_canonical_json(io::IO, d::Dict)
         _write_canonical_json(io, d[k])
     end
     write(io, "}")
+end
+
+function _write_canonical_json(io::IO, obj::JSON.Object)
+    _write_canonical_json(io, Dict{String,Any}(obj))
 end
 
 function _write_canonical_json(io::IO, v::Vector)
