@@ -27,28 +27,33 @@
 
 | Category | Features |
 |----------|----------|
-| **PK Models** | One/Two/Three-compartment IV & oral, transit absorption, Michaelis-Menten |
-| **PD Models** | Direct Emax, sigmoid Emax, biophase equilibration, indirect response |
+| **PK Models** | One/Two/Three-compartment IV & oral, transit absorption, Michaelis-Menten elimination |
+| **PD Models** | Direct Emax, sigmoid Emax, biophase equilibration, indirect response (IRM1-4), transit compartment PD, disease progression, tolerance/counter-regulation |
+| **TMDD Models** | Full TMDD, QSS approximation, Michaelis-Menten approximation for biologics |
+| **Drug Interactions** | Bliss independence, competitive inhibition, receptor regulation |
 | **IV Infusion** | Zero-order infusion with duration support, overlapping infusions |
-| **Population** | IIV, IOV, static & time-varying covariates |
-| **Parameter Estimation** | NLME with FOCE-I, SAEM, and Laplacian methods |
+| **Population** | IIV, IOV, static & time-varying covariates, BLQ handling |
+| **Parameter Estimation** | NLME with FOCE-I, SAEM, Laplacian, and Bayesian methods |
+| **Advanced Estimation** | Bootstrap, mixture models, model averaging, stepwise covariate modeling (SCM) |
 | **NCA** | FDA/EMA-compliant non-compartmental analysis |
-| **Trial Simulation** | Parallel, crossover, dose-escalation, bioequivalence designs |
-| **Sensitivity** | Single-subject and population-level analysis |
-| **VPC** | Visual Predictive Checks with pcVPC and stratification |
+| **Trial Simulation** | Parallel, crossover, dose-escalation, bioequivalence, adaptive designs |
+| **Adaptive Trials** | Response-adaptive randomization, sample size re-estimation, treatment selection, enrichment |
+| **Sensitivity Analysis** | Local sensitivity, Sobol' indices (first/second/total order), Morris screening |
+| **VPC & Diagnostics** | Visual Predictive Checks (pcVPC), CWRES, IWRES, NPDE |
 | **Model Import** | NONMEM (.ctl) and Monolix (.mlxtran) model parsing |
-| **Data Import** | CDISC/SDTM format support (PC, EX, DM domains) |
+| **Data Import** | CDISC/SDTM format support (PC, EX, DM domains), XPT reader |
 | **Residual Error** | Additive, proportional, combined, exponential models |
+| **Compliance** | FDA 21 CFR Part 11 support, digital signatures, audit trails |
 | **Visualization** | Matplotlib/Plotly backends with estimation diagnostics |
 | **Interfaces** | Julia API, Python bindings, CLI |
-| **Reproducibility** | Versioned artifacts with deterministic replay |
+| **Reproducibility** | Versioned artifacts with deterministic replay, schema validation |
 
 ## Installation
 
 ### Julia (Core)
 
 ```bash
-git clone https://github.com/neopkpd/neopkpd.git
+git clone https://github.com/shramish2057/neopkpd.git
 cd neopkpd
 
 # Install dependencies
@@ -147,21 +152,27 @@ neopkpd/
 ├── packages/
 │   ├── core/                 # Julia simulation engine (NeoPKPDCore)
 │   │   ├── src/
-│   │   │   ├── models/       # PK/PD model definitions
-│   │   │   ├── engine/       # ODE solving, population, infusion
+│   │   │   ├── pk/           # PK model definitions (1/2/3-comp, transit, MM)
+│   │   │   ├── pd/           # PD models (Emax, indirect response, etc.)
+│   │   │   ├── tmdd/         # TMDD models for biologics
+│   │   │   ├── engine/       # ODE solving, population, sensitivity
 │   │   │   ├── specs/        # Type specifications (ModelSpec, etc.)
-│   │   │   ├── estimation/   # NLME: FOCE-I, SAEM, Laplacian
+│   │   │   ├── estimation/   # NLME: FOCE-I, SAEM, Laplacian, bootstrap
+│   │   │   ├── trial/        # Clinical trial simulation & adaptive designs
+│   │   │   ├── nca/          # Non-compartmental analysis
 │   │   │   ├── import/       # NONMEM/Monolix parsers
 │   │   │   ├── data/         # CDISC data handling
-│   │   │   ├── analysis/     # VPC, NCA, sensitivity
-│   │   │   └── serialization/# JSON artifact I/O
-│   │   └── test/             # Comprehensive test suite
+│   │   │   ├── analysis/     # VPC, NPDE, residuals
+│   │   │   ├── compliance/   # FDA 21 CFR Part 11 compliance
+│   │   │   └── serialization/# JSON artifact I/O with schema validation
+│   │   └── test/             # Comprehensive test suite (5400+ tests)
 │   ├── python/               # Python bindings (neopkpd)
 │   │   └── neopkpd/
 │   │       ├── simulations/  # PK/PD simulation wrappers
 │   │       ├── nca/          # Non-compartmental analysis
 │   │       ├── trial/        # Clinical trial simulation
 │   │       ├── estimation/   # NLME Python interface
+│   │       ├── vpc/          # Visual Predictive Checks
 │   │       ├── import_/      # Model import utilities
 │   │       ├── data/         # CDISC data utilities
 │   │       └── viz/          # Visualization (matplotlib/plotly)
@@ -172,8 +183,7 @@ neopkpd/
 │   ├── golden/               # Reference outputs (deterministic)
 │   └── scripts/              # Validation runners
 ├── docs/                     # Documentation (MkDocs)
-│   ├── examples/             # Executable examples
-│   └── *.md                  # API references
+│   └── *.md                  # Architecture, semantics, CLI reference
 └── scripts/                  # Development tools
 ```
 
@@ -201,7 +211,7 @@ NeoPKPD uses independent version numbers for numerical behavior:
 |---------|---------|-------|
 | Event Semantics | 1.0.0 | Dose handling |
 | Solver Semantics | 1.0.0 | ODE solver behavior |
-| Artifact Schema | 1.0.0 | JSON format |
+| Artifact Schema | 1.1.0 | JSON format with compliance metadata |
 
 Any change to numerical output requires a version bump.
 
@@ -211,17 +221,12 @@ Full documentation: [shramish2057.github.io/NeoPKPD](https://shramish2057.github
 
 | Guide | Description |
 |-------|-------------|
-| [Models](docs/models.md) | PK/PD model reference |
-| [Estimation](docs/estimation.md) | NLME parameter estimation (FOCE-I, SAEM) |
-| [Population](docs/population.md) | IIV, IOV, covariates |
-| [NCA](docs/nca.md) | Non-compartmental analysis |
-| [VPC](docs/vpc.md) | Visual Predictive Checks |
-| [Trial Simulation](docs/trial.md) | Clinical trial design |
-| [Data Import](docs/data.md) | CDISC/SDTM format |
-| [Model Import](docs/import.md) | NONMEM/Monolix parsing |
+| [Getting Started](docs/index.md) | Overview and quick start guide |
+| [Architecture](docs/architecture.md) | System design and module structure |
+| [Sensitivity Analysis](docs/sensitivity.md) | Local and global sensitivity methods |
+| [Reproducibility](docs/reproducibility.md) | Artifact versioning and deterministic replay |
+| [Semantics](docs/semantics.md) | Numerical semantics and versioning |
 | [CLI Reference](docs/cli.md) | Command-line interface |
-| [Python API](docs/python.md) | Python bindings |
-| [Visualization](docs/visualization.md) | Plotting functions |
 
 Build locally:
 ```bash
@@ -242,7 +247,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ```bibtex
 @software{neopkpd,
   title = {NeoPKPD: Transparent PK/PD Modeling Infrastructure},
-  url = {https://github.com/neopkpd/neopkpd},
+  url = {https://github.com/shramish2057/neopkpd},
   version = {0.1.0}
 }
 ```
