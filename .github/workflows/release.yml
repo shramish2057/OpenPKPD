@@ -72,7 +72,7 @@ jobs:
       - name: Verify Python version matches
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          PYTHON_VER=$(grep -Po '(?<=version = ")[^"]*' packages/python/pyproject.toml)
+          PYTHON_VER=$(grep -E '^version = "' packages/python/pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           if [[ "$VERSION" != "$PYTHON_VER" ]]; then
             echo "Version mismatch!"
             echo "Tag version: $VERSION"

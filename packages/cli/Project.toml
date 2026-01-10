@@ -8,9 +8,6 @@ ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 NeoPKPDCore = "aa42e64f-7c0c-4f7e-9a43-9f30a48e1a32"
 
-[sources]
-NeoPKPDCore = {path = "../core"}
-
 [compat]
 julia = "1.10"
 ArgParse = "1"
