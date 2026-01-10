@@ -1,7 +1,7 @@
 # Basic CDISC Data Import - Julia Example
-# Run: julia --project=core/NeoPKPDCore load.jl
+# Run: julia --project=core/NeoPKPD load.jl
 
-using NeoPKPDCore
+using NeoPKPD
 
 println("CDISC PC/EX Data Import")
 println("="^50)

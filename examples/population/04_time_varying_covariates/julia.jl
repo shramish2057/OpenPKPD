@@ -1,7 +1,7 @@
 # Time-Varying Covariates - Julia Example
-# Run: julia --project=core/NeoPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPD julia.jl
 
-using NeoPKPDCore
+using NeoPKPD
 using Random
 
 println("Time-Varying Covariates (Renal Function)")

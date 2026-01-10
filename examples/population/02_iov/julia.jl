@@ -1,7 +1,7 @@
 # Inter-Occasion Variability (IOV) - Julia Example
-# Run: julia --project=core/NeoPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPD julia.jl
 
-using NeoPKPDCore
+using NeoPKPD
 
 println("Inter-Occasion Variability (IOV)")
 println("="^50)

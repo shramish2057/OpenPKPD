@@ -1,7 +1,7 @@
 # Basic NCA Analysis - Julia Example
-# Run: julia --project=core/NeoPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPD julia.jl
 
-using NeoPKPDCore
+using NeoPKPD
 
 println("Basic Non-Compartmental Analysis (NCA)")
 println("="^50)

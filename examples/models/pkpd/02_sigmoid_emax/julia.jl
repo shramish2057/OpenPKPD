@@ -1,7 +1,7 @@
 # Sigmoid Emax (Hill) PD Model - Julia Example
-# Run: julia --project=core/NeoPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPD julia.jl
 
-using NeoPKPDCore
+using NeoPKPD
 
 println("Sigmoid Emax (Hill) PD Model")
 println("="^50)

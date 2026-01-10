@@ -7493,7 +7493,7 @@
 <h1 id="cli-reference">CLI Reference<a class="headerlink" href="#cli-reference" title="Permanent link">&para;</a></h1>
 <p>NeoPKPD provides a comprehensive command-line interface for PK/PD simulations, estimation, VPC, NCA, trial simulation, and model import.</p>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
-<p>The CLI is located in <code>packages/cli/bin/neopkpd</code> and requires Julia with the NeoPKPDCore and NeoPKPDCLI packages.</p>
+<p>The CLI is located in <code>packages/cli/bin/neopkpd</code> and requires Julia with the NeoPKPD and NeoPKPDCLI packages.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Install dependencies</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>julia<span class="w"> </span>--project<span class="o">=</span>packages/core<span class="w"> </span>-e<span class="w"> </span><span class="s1">&#39;using Pkg; Pkg.instantiate()&#39;</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>julia<span class="w"> </span>--project<span class="o">=</span>packages/cli<span class="w"> </span>-e<span class="w"> </span><span class="s1">&#39;using Pkg; Pkg.instantiate()&#39;</span>
@@ -7808,7 +7808,7 @@
 </span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="w">    </span><span class="nt">steps</span><span class="p">:</span>
 </span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v3</span>
 </span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">julia-actions/setup-julia@v1</span>
-</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">julia --project=core/NeoPKPDCore -e &#39;using Pkg; Pkg.instantiate()&#39;</span>
+</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">julia --project=core/NeoPKPD -e &#39;using Pkg; Pkg.instantiate()&#39;</span>
 </span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./bin/neopkpd validate-golden</span>
 </span></code></pre></div>
 <h3 id="batch-replay">Batch Replay<a class="headerlink" href="#batch-replay" title="Permanent link">&para;</a></h3>
@@ -7822,7 +7822,7 @@
 </span></code></pre></div>
 <h3 id="compare-artifacts">Compare Artifacts<a class="headerlink" href="#compare-artifacts" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># Generate new artifact</span>
-</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>julia<span class="w"> </span>--project<span class="o">=</span>core/NeoPKPDCore<span class="w"> </span>my_simulation.jl
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>julia<span class="w"> </span>--project<span class="o">=</span>core/NeoPKPD<span class="w"> </span>my_simulation.jl
 </span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>
 </span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="c1"># Compare with golden</span>
 </span><span id="__span-25-5"><a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>diff<span class="w"> </span>&lt;<span class="o">(</span>jq<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>validation/golden/pk_iv_bolus.json<span class="o">)</span><span class="w"> </span>&lt;<span class="o">(</span>jq<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>my_artifact.json<span class="o">)</span>
@@ -7834,10 +7834,10 @@
 </span></code></pre></div>
 <p><strong>Solution</strong>: Ensure Julia is installed and in your PATH.</p>
 <h3 id="package-not-installed">Package Not Installed<a class="headerlink" href="#package-not-installed" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>Error: ArgumentError: Package NeoPKPDCore not found
+<div class="language-text highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>Error: ArgumentError: Package NeoPKPD not found
 </span></code></pre></div>
 <p><strong>Solution</strong>: Install dependencies:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>julia<span class="w"> </span>--project<span class="o">=</span>core/NeoPKPDCore<span class="w"> </span>-e<span class="w"> </span><span class="s1">&#39;using Pkg; Pkg.instantiate()&#39;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>julia<span class="w"> </span>--project<span class="o">=</span>core/NeoPKPD<span class="w"> </span>-e<span class="w"> </span><span class="s1">&#39;using Pkg; Pkg.instantiate()&#39;</span>
 </span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>julia<span class="w"> </span>--project<span class="o">=</span>cli/NeoPKPDCLI<span class="w"> </span>-e<span class="w"> </span><span class="s1">&#39;using Pkg; Pkg.instantiate()&#39;</span>
 </span></code></pre></div>
 <h3 id="artifact-schema-mismatch">Artifact Schema Mismatch<a class="headerlink" href="#artifact-schema-mismatch" title="Permanent link">&para;</a></h3>

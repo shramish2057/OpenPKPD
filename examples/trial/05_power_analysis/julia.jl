@@ -1,7 +1,7 @@
 # Power Analysis - Julia Example
-# Run: julia --project=core/NeoPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPD julia.jl
 
-using NeoPKPDCore
+using NeoPKPD
 
 println("Power Analysis and Sample Size Estimation")
 println("="^60)

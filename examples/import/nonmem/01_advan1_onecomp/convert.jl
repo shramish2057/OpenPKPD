@@ -4,7 +4,7 @@
 using Pkg
 Pkg.activate("packages/core")
 
-using NeoPKPDCore
+using NeoPKPD
 using JSON
 
 println("NONMEM ADVAN1 Import")

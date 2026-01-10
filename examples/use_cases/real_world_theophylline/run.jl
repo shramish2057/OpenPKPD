@@ -4,7 +4,7 @@
 using Pkg
 Pkg.activate("packages/core")
 
-using NeoPKPDCore
+using NeoPKPD
 using JSON
 using Statistics
 using DelimitedFiles

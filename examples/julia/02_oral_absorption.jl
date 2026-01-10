@@ -4,9 +4,9 @@
 # with first-order absorption kinetics.
 
 using Pkg
-Pkg.activate(joinpath(@__DIR__, "..", "..", "..", "core", "NeoPKPDCore"))
+Pkg.activate(joinpath(@__DIR__, "..", "..", "..", "core", "NeoPKPD"))
 
-using NeoPKPDCore
+using NeoPKPD
 
 # Model parameters
 # Ka = 1.5 /h (absorption rate constant)

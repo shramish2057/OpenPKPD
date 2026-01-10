@@ -7738,7 +7738,7 @@
 <p>Bioequivalence analysis determines whether two drug formulations have comparable rate and extent of absorption within predefined limits (typically 80-125%).</p>
 <hr />
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
-<div class="language-julia highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">using</span><span class="w"> </span><span class="n">NeoPKPDCore</span>
+<div class="language-julia highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">using</span><span class="w"> </span><span class="n">NeoPKPD</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c"># Test vs Reference NCA results</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">test_auc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="mf">45.2</span><span class="p">,</span><span class="w"> </span><span class="mf">52.1</span><span class="p">,</span><span class="w"> </span><span class="mf">38.7</span><span class="p">,</span><span class="w"> </span><span class="mf">61.3</span><span class="p">,</span><span class="w"> </span><span class="mf">49.8</span><span class="p">]</span>
@@ -8087,7 +8087,7 @@
 </span></code></pre></div>
 <hr />
 <h2 id="example-complete-be-analysis">Example: Complete BE Analysis<a class="headerlink" href="#example-complete-be-analysis" title="Permanent link">&para;</a></h2>
-<div class="language-julia highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="k">using</span><span class="w"> </span><span class="n">NeoPKPDCore</span><span class="p">,</span><span class="w"> </span><span class="n">DataFrames</span>
+<div class="language-julia highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="k">using</span><span class="w"> </span><span class="n">NeoPKPD</span><span class="p">,</span><span class="w"> </span><span class="n">DataFrames</span>
 </span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>
 </span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="c"># Crossover study data</span>
 </span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">DataFrame</span><span class="p">(</span>

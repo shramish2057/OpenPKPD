@@ -2,7 +2,7 @@ using Pkg
 Pkg.activate("packages/core")
 Pkg.instantiate()
 
-using NeoPKPDCore
+using NeoPKPD
 using JSON
 
 # PK/PD parameters

@@ -7211,7 +7211,7 @@
 <hr />
 <h2 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h2>
 <h3 id="julia-5-minutes">Julia (5 minutes)<a class="headerlink" href="#julia-5-minutes" title="Permanent link">&para;</a></h3>
-<div class="language-julia highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">using</span><span class="w"> </span><span class="n">NeoPKPDCore</span>
+<div class="language-julia highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">using</span><span class="w"> </span><span class="n">NeoPKPD</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c"># Create a one-compartment IV bolus model</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_model_spec</span><span class="p">(</span><span class="s">&quot;OneCompIVBolus&quot;</span><span class="p">,</span>
@@ -7441,12 +7441,12 @@
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>./docs/examples/run_all.sh
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Run specific category</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>julia<span class="w"> </span>--project<span class="o">=</span>core/NeoPKPDCore<span class="w"> </span>docs/examples/models/run_all.jl
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>julia<span class="w"> </span>--project<span class="o">=</span>core/NeoPKPD<span class="w"> </span>docs/examples/models/run_all.jl
 </span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>python<span class="w"> </span>docs/examples/estimation/run_all.py
 </span></code></pre></div>
 <h3 id="validate-outputs">Validate Outputs<a class="headerlink" href="#validate-outputs" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Validate against expected outputs</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>julia<span class="w"> </span>--project<span class="o">=</span>core/NeoPKPDCore<span class="w"> </span>docs/examples/validate_outputs.jl
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>julia<span class="w"> </span>--project<span class="o">=</span>core/NeoPKPD<span class="w"> </span>docs/examples/validate_outputs.jl
 </span></code></pre></div>
 <hr />
 <h2 id="contributing-examples">Contributing Examples<a class="headerlink" href="#contributing-examples" title="Permanent link">&para;</a></h2>

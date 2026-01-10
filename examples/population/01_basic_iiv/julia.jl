@@ -1,7 +1,7 @@
 # Basic Inter-Individual Variability (IIV) - Julia Example
-# Run: julia --project=core/NeoPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPD julia.jl
 
-using NeoPKPDCore
+using NeoPKPD
 
 println("Basic Inter-Individual Variability (IIV)")
 println("="^50)

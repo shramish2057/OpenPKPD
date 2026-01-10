@@ -6600,10 +6600,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#core-coreneopkpdcore" class="md-nav__link">
+  <a href="#core-coreneopkpd" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core (core/NeoPKPDCore/)
+        Core (core/NeoPKPD/)
       
     </span>
   </a>
@@ -7265,10 +7265,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#core-coreneopkpdcore" class="md-nav__link">
+  <a href="#core-coreneopkpd" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core (core/NeoPKPDCore/)
+        Core (core/NeoPKPD/)
       
     </span>
   </a>
@@ -7766,7 +7766,7 @@
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>         │                 │                     │
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>         ▼                 ▼                     ▼
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>┌─────────────────────────────────────────────────────────────────┐
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>│                     NeoPKPDCore                                │
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>│                     NeoPKPD                                │
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>├─────────────────────────────────────────────────────────────────┤
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
 </span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>│  │   Models    │  │   Engine    │  │    Serialization        │ │
@@ -7786,9 +7786,9 @@
 </span></code></pre></div>
 <hr />
 <h2 id="module-structure">Module Structure<a class="headerlink" href="#module-structure" title="Permanent link">&para;</a></h2>
-<h3 id="core-coreneopkpdcore">Core (<code>core/NeoPKPDCore/</code>)<a class="headerlink" href="#core-coreneopkpdcore" title="Permanent link">&para;</a></h3>
+<h3 id="core-coreneopkpd">Core (<code>core/NeoPKPD/</code>)<a class="headerlink" href="#core-coreneopkpd" title="Permanent link">&para;</a></h3>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>src/
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├── NeoPKPDCore.jl          # Module definition, exports
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>├── NeoPKPD.jl          # Module definition, exports
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>├── specs/
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>│   ├── specs.jl             # Core type definitions
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>│   ├── sensitivity.jl       # Perturbation types
@@ -7959,7 +7959,7 @@
 <li><code>pk_ode!(du, u, p, t, ::NewModel)</code></li>
 <li><code>pk_conc(u, p, ::NewModel)</code></li>
 <li><code>pk_dose_target_index(::NewModel)</code></li>
-<li>Add exports to <code>NeoPKPDCore.jl</code></li>
+<li>Add exports to <code>NeoPKPD.jl</code></li>
 <li>Add serialization support</li>
 <li>Add tests and golden artifacts</li>
 </ol>

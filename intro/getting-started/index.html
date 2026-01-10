@@ -7606,7 +7606,7 @@
 </span></code></pre></div>
 <h3 id="install-julia-core">Install Julia Core<a class="headerlink" href="#install-julia-core" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Activate and instantiate the Julia project</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>julia<span class="w"> </span>--project<span class="o">=</span>core/NeoPKPDCore<span class="w"> </span>-e<span class="w"> </span><span class="s1">&#39;using Pkg; Pkg.instantiate()&#39;</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>julia<span class="w"> </span>--project<span class="o">=</span>core/NeoPKPD<span class="w"> </span>-e<span class="w"> </span><span class="s1">&#39;using Pkg; Pkg.instantiate()&#39;</span>
 </span></code></pre></div>
 <p>This installs all Julia dependencies including:
 - DifferentialEquations.jl (ODE solvers)
@@ -7631,9 +7631,9 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="3:3"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><input id="__tabbed_3_3" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Julia</label><label for="__tabbed_3_2">Python</label><label for="__tabbed_3_3">CLI</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-julia highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">julia</span><span class="w"> </span><span class="o">--</span><span class="n">project</span><span class="o">=</span><span class="n">core</span><span class="o">/</span><span class="n">NeoPKPDCore</span>
+<div class="language-julia highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">julia</span><span class="w"> </span><span class="o">--</span><span class="n">project</span><span class="o">=</span><span class="n">core</span><span class="o">/</span><span class="n">NeoPKPD</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">julia</span><span class="o">&gt;</span><span class="w"> </span><span class="k">using</span><span class="w"> </span><span class="n">NeoPKPDCore</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">julia</span><span class="o">&gt;</span><span class="w"> </span><span class="k">using</span><span class="w"> </span><span class="n">NeoPKPD</span>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">julia</span><span class="o">&gt;</span><span class="w"> </span><span class="n">println</span><span class="p">(</span><span class="n">version</span><span class="p">())</span>
 </span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="c"># 0.1.0</span>
 </span></code></pre></div>
@@ -7655,7 +7655,7 @@
 <hr />
 <h2 id="your-first-simulation">Your First Simulation<a class="headerlink" href="#your-first-simulation" title="Permanent link">&para;</a></h2>
 <h3 id="julia-one-compartment-iv-bolus">Julia: One-Compartment IV Bolus<a class="headerlink" href="#julia-one-compartment-iv-bolus" title="Permanent link">&para;</a></h3>
-<div class="language-julia highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">using</span><span class="w"> </span><span class="n">NeoPKPDCore</span>
+<div class="language-julia highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">using</span><span class="w"> </span><span class="n">NeoPKPD</span>
 </span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c"># Define model parameters</span>
 </span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="c"># CL = 5 L/h, V = 50 L</span>

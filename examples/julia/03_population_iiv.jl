@@ -4,9 +4,9 @@
 # with inter-individual variability (IIV).
 
 using Pkg
-Pkg.activate(joinpath(@__DIR__, "..", "..", "..", "core", "NeoPKPDCore"))
+Pkg.activate(joinpath(@__DIR__, "..", "..", "..", "core", "NeoPKPD"))
 
-using NeoPKPDCore
+using NeoPKPD
 
 # Base model parameters (typical values)
 # CL = 5.0 L/h, V = 50.0 L

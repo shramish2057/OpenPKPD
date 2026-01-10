@@ -1,7 +1,7 @@
 # One-Compartment Oral First-Order Absorption - Julia Example
-# Run: julia --project=core/NeoPKPDCore julia.jl
+# Run: julia --project=core/NeoPKPD julia.jl
 
-using NeoPKPDCore
+using NeoPKPD
 
 println("One-Compartment Oral First-Order Absorption Model")
 println("="^50)
