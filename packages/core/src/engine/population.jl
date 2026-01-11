@@ -487,7 +487,7 @@ function simulate_population(
         "seed" => seed,
         "iiv_kind" => iiv_kind,
         "omegas" => Dict(String(k) => v for (k, v) in omegas),
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "event_semantics_version" => EVENT_SEMANTICS_VERSION,
         "solver_semantics_version" => SOLVER_SEMANTICS_VERSION,
         "covariate_model" =>

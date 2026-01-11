@@ -50,7 +50,7 @@ function run_population_sensitivity(
     m_mean = compute_metrics(base_summary.mean, pert_summary.mean)
 
     md = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "event_semantics_version" => EVENT_SEMANTICS_VERSION,
         "solver_semantics_version" => SOLVER_SEMANTICS_VERSION,
         "artifact_schema_version" => ARTIFACT_SCHEMA_VERSION,

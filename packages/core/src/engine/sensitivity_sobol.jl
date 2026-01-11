@@ -202,7 +202,7 @@ function run_sobol_sensitivity(
     elapsed = time() - start_time
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "method" => "Sobol",
         "base_sample_size" => N,
         "n_parameters" => d,
@@ -299,7 +299,7 @@ function run_population_sobol_sensitivity(
     elapsed = time() - start_time
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "method" => "Sobol_Population",
         "base_sample_size" => N,
         "n_parameters" => d,
@@ -835,7 +835,7 @@ function run_sobol_sensitivity_with_second_order(
     elapsed = time() - start_time
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "method" => "Sobol",
         "base_sample_size" => N,
         "n_parameters" => d,

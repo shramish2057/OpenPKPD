@@ -6,7 +6,7 @@ module NeoPKPD
 using SciMLBase
 using DifferentialEquations
 
-const NEOPKPD_VERSION = "0.1.0"
+const NEOPKPD_VERSION = "0.1.1"
 export NEOPKPD_VERSION
 
 # ------------------------------------------------------------------

@@ -156,7 +156,7 @@ function simulate_segmented_pkpd_coupled(
     observations = Dict{Symbol,Vector{Float64}}(:conc => conc, outkey => response)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "Segmented Coupled PKPD",
         "pk_kind" => string(typeof(kind)),
         "pd_kind" => "IndirectResponseTurnover",

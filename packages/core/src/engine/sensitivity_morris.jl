@@ -189,7 +189,7 @@ function run_morris_sensitivity(
     elapsed = time() - start_time
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "method" => "Morris",
         "n_trajectories" => r,
         "n_levels" => method.n_levels,
@@ -286,7 +286,7 @@ function run_population_morris_sensitivity(
     elapsed = time() - start_time
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "method" => "Morris_Population",
         "n_trajectories" => r,
         "n_levels" => method.n_levels,

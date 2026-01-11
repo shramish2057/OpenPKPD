@@ -5,6 +5,21 @@ All notable changes to NeoPKPD will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-01-11
+
+### Fixed
+- CI segmentation fault in Python tests by adding proper juliacall signal handling
+- Added `conftest.py` with session-scoped Julia initialization fixture
+- Set `PYTHON_JULIACALL_HANDLE_SIGNALS=yes` environment variable in CI
+
+### Added
+- SoftwareX publication figures and diagrams
+- TikZ architecture diagrams for publication
+- Mermaid architecture diagrams
+
+### Changed
+- Updated all version references to 0.1.1
+
 ## [0.1.0] - 2025-01-10
 
 ### PK Models
@@ -200,4 +215,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Solver Semantics: 1.0.0
 - Artifact Schema: 1.0.0
 
-[0.1.0]: https://github.com/shramish2057/openpkpd/releases/tag/v0.1.0
+[0.1.1]: https://github.com/shramish2057/neopkpd/releases/tag/v0.1.1
+[0.1.0]: https://github.com/shramish2057/neopkpd/releases/tag/v0.1.0

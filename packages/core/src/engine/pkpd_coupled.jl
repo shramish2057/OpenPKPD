@@ -131,7 +131,7 @@ function simulate_pkpd_coupled(
     observations = Dict{Symbol,Vector{Float64}}(:conc => C, outkey => R)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "Coupled PKPD",
         "pk_kind" => string(typeof(kind)),
         "pd_kind" => "IndirectResponseTurnover",
@@ -239,7 +239,7 @@ function simulate_pkpd_coupled(
     observations = Dict{Symbol,Vector{Float64}}(:conc => C, outkey => R)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "Coupled PKPD",
         "pk_kind" => string(typeof(kind)),
         "pd_kind" => "IndirectResponseIRM1",
@@ -345,7 +345,7 @@ function simulate_pkpd_coupled(
     observations = Dict{Symbol,Vector{Float64}}(:conc => C, outkey => R)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "Coupled PKPD",
         "pk_kind" => string(typeof(kind)),
         "pd_kind" => "IndirectResponseIRM2",
@@ -451,7 +451,7 @@ function simulate_pkpd_coupled(
     observations = Dict{Symbol,Vector{Float64}}(:conc => C, outkey => R)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "Coupled PKPD",
         "pk_kind" => string(typeof(kind)),
         "pd_kind" => "IndirectResponseIRM4",
@@ -585,7 +585,7 @@ function simulate_pkpd_coupled(
     mtt = (N + 1) / ktr
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "Coupled PKPD",
         "pk_kind" => string(typeof(kind)),
         "pd_kind" => "TransitCompartmentPD",
@@ -705,7 +705,7 @@ function simulate_pkpd_coupled(
     observations = Dict{Symbol,Vector{Float64}}(:conc => C, outkey => tumor_size)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "Coupled PKPD",
         "pk_kind" => string(typeof(kind)),
         "pd_kind" => "DiseaseProgressionPD",
@@ -834,7 +834,7 @@ function simulate_pkpd_coupled(
     observations = Dict{Symbol,Vector{Float64}}(:conc => C, outkey => effect, :E_drug => E_drug)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "Coupled PKPD",
         "pk_kind" => string(typeof(kind)),
         "pd_kind" => "ToleranceCounterRegulation",
@@ -992,7 +992,7 @@ function simulate_pkpd_coupled(
     observations = Dict{Symbol,Vector{Float64}}(:conc => C, outkey => effect, :receptor_density => receptor)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "Coupled PKPD",
         "pk_kind" => string(typeof(kind)),
         "pd_kind" => "ReceptorRegulation",

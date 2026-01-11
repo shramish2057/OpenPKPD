@@ -2,6 +2,16 @@
 
 All notable changes to the neopkpd Python package are documented here.
 
+## [0.1.1] - 2025-01-11
+
+### Fixed
+- CI segmentation fault by adding proper juliacall signal handling in `conftest.py`
+- Session-scoped Julia initialization fixture for stable test execution
+
+### Added
+- `conftest.py` with `PYTHON_JULIACALL_HANDLE_SIGNALS=yes` configuration
+- `julia_initialized` and `init` fixtures for backward compatibility
+
 ## [0.1.0] - 2025-01-10
 
 ### Simulation
@@ -65,4 +75,5 @@ All notable changes to the neopkpd Python package are documented here.
 - Integration tests with Julia backend
 - Visualization tests
 
-[0.1.0]: https://github.com/shramish2057/openpkpd/releases/tag/v0.1.0
+[0.1.1]: https://github.com/shramish2057/neopkpd/releases/tag/v0.1.1
+[0.1.0]: https://github.com/shramish2057/neopkpd/releases/tag/v0.1.0

@@ -142,7 +142,7 @@ function simulate(
     dose_schedule = [(d.time, d.amount, d.duration) for d in spec.doses]
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "OneCompIVBolus",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -220,7 +220,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "OneCompOralFirstOrder",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -317,7 +317,7 @@ function simulate(
     dose_schedule = [(d.time, d.amount, d.duration) for d in spec.doses]
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "TwoCompIVBolus",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -385,7 +385,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "TwoCompOral",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -483,7 +483,7 @@ function simulate(
     dose_schedule = [(d.time, d.amount, d.duration) for d in spec.doses]
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "ThreeCompIVBolus",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -559,7 +559,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "TransitAbsorption",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -659,7 +659,7 @@ function simulate(
     dose_schedule = [(d.time, d.amount, d.duration) for d in spec.doses]
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "MichaelisMentenElimination",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -799,7 +799,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "OneCompOralFirstOrder",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -888,7 +888,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "TwoCompOral",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -991,7 +991,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "TransitAbsorption",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -1085,7 +1085,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "OneCompIVBolus",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -1166,7 +1166,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "TwoCompIVBolus",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -1254,7 +1254,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "ThreeCompIVBolus",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -1345,7 +1345,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "MichaelisMentenElimination",
         "solver_alg" => String(solver.alg),
         "reltol" => solver.reltol,
@@ -1478,7 +1478,7 @@ function simulate(
     observations = Dict(:conc => C)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "CustomODE",
         "model_description" => kind.description,
         "n_states" => kind.n_states,

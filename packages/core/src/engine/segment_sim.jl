@@ -124,7 +124,7 @@ function simulate_segmented_pk(
     observations = Dict{Symbol,Vector{Float64}}(:conc => conc)
 
     metadata = Dict{String,Any}(
-        "engine_version" => "0.1.0",
+        "engine_version" => "0.1.1",
         "model" => "Segmented PK",
         "pk_kind" => string(typeof(kind)),
         "solver_alg" => String(solver.alg),
