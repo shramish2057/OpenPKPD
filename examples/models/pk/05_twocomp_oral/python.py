@@ -5,13 +5,16 @@ Two-Compartment Oral Model - Python Example
 Run: python python.py
 """
 
-from neopkpd import simulate, create_model_spec
+import neopkpd
 import numpy as np
 
 
 def main():
     print("Two-Compartment Oral Model")
     print("=" * 50)
+
+    # Initialize Julia backend (required once per session)
+    neopkpd.init_julia()
 
     # Model parameters
     Ka = 1.5   # Absorption rate constant (1/h)
@@ -21,25 +24,22 @@ def main():
     V2 = 40.0  # Peripheral volume (L)
     Dose = 100.0  # mg
 
-    # Create model specification
-    model = create_model_spec(
-        "TwoCompOral",
-        name="twocomp_oral_example",
-        params={"Ka": Ka, "CL": CL, "V1": V1, "Q": Q, "V2": V2},
-        doses=[{"time": 0.0, "amount": Dose}]
-    )
-
-    # Run simulation
+    # Run simulation using the actual API
     print("\nRunning simulation...")
-    result = simulate(
-        model,
-        t_start=0.0,
-        t_end=72.0,
-        saveat=0.25
+    result = neopkpd.simulate_pk_twocomp_oral(
+        ka=Ka,
+        cl=CL,
+        v1=V1,
+        q=Q,
+        v2=V2,
+        doses=[{"time": 0.0, "amount": Dose}],
+        t0=0.0,
+        t1=72.0,
+        saveat=[float(t) for t in np.arange(0.0, 72.25, 0.25)]
     )
 
     # Extract results
-    times = np.array(result["t"])
+    times = np.array(result["times"])
     conc = np.array(result["observations"]["conc"])
 
     # Compute metrics

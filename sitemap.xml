@@ -2,790 +2,790 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/architecture/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/cli/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/reproducibility/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/semantics/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/sensitivity/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/data/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/data/cdisc/01_basic_pc_ex/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/data/cdisc/02_with_infusion/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/data/cdisc/03_xpt_format/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/estimation/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/estimation/01_foce_onecomp/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/estimation/02_saem_twocomp/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/estimation/03_laplacian_sparse/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/estimation/04_estimation_diagnostics/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/estimation/05_model_comparison/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/import/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/import/monolix/01_pk1cpt_oral/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/import/monolix/02_pk2cpt_iv/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/import/nonmem/01_advan1_onecomp/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/import/nonmem/02_advan2_oral/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/import/nonmem/03_advan4_twocomp/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pk/01_onecomp_iv_bolus/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pk/02_onecomp_iv_infusion/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pk/03_onecomp_oral/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pk/04_twocomp_iv/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pk/05_twocomp_oral/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pk/06_threecomp_iv/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pk/07_transit_absorption/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pk/08_michaelis_menten/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pkpd/01_direct_emax/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pkpd/02_sigmoid_emax/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pkpd/03_biophase_equilibration/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/models/pkpd/04_indirect_response/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/nca/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/nca/01_basic_nca/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/nca/02_population_nca/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/population/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/population/01_basic_iiv/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/population/02_iov/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/population/03_static_covariates/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/population/04_time_varying_covariates/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/population/05_complex_covariate_model/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/quickstart/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/real_world_validation/SOURCE/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/real_world_validation/datasets/theophylline_theo_md/SOURCE/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/real_world_validation/datasets/theophylline_theo_sd/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/real_world_validation/datasets/theophylline_theo_sd/SOURCE/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/real_world_validation/datasets/warfarin_nlmixr2data/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/real_world_validation/datasets/warfarin_nlmixr2data/SOURCE/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/real_world_validation/studies/theophylline_theo_md/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/real_world_validation/studies/theophylline_theo_sd/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/real_world_validation/studies/warfarin_pkpd/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/reproducibility/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/sensitivity/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/sensitivity/01_single_subject/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/sensitivity/02_population/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/sensitivity/03_tornado_plot/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/trial/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/trial/01_parallel_design/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/trial/02_crossover_design/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/trial/03_dose_escalation_3plus3/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/trial/04_bioequivalence_study/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/trial/05_power_analysis/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/use_cases/bioequivalence_study/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/use_cases/fih_dose_exploration/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/use_cases/nonmem_migration/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/use_cases/pkpd_biomarker_turnover/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/use_cases/population_pkpd_analysis/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/use_cases/real_world_theophylline/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/visualization/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/visualization/01_concentration_time/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/visualization/02_population_spaghetti/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/visualization/03_vpc_plots/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/visualization/04_estimation_diagnostics/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/vpc/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/vpc/01_standard_vpc/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/examples/vpc/02_prediction_corrected_vpc/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/intro/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/intro/architecture/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/intro/features/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/intro/getting-started/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/tutorial/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/estimation/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/estimation/bootstrap/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/estimation/comparison/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/estimation/diagnostics/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/estimation/foce/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/estimation/laplacian/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/estimation/saem/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/import/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/import/cdisc/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/import/monolix/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/import/nonmem/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pd/direct-emax/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pd/disease-progression/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pd/effect-compartment/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pd/indirect-response/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pd/sigmoid-emax/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pd/tolerance/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pd/transit-pd/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/autoinduction/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/enterohepatic/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/michaelis-menten/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/onecomp-iv-bolus/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/onecomp-oral/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/parallel-absorption/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/threecomp-iv/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/tmdd/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/transit-absorption/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/twocomp-iv/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/models/pk/twocomp-oral/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/nca/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/nca/bioequivalence/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/nca/exposure-metrics/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/nca/multiple-dose/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/nca/population-nca/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/nca/terminal-phase/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/population/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/population/covariates/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/population/iiv/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/population/iov/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/population/residual-error/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/trial/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/trial/crossover/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/trial/dose-escalation/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/trial/parallel/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/trial/power/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/vpc/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/vpc/pcvpc/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/vpc/standard/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/julia/vpc/stratified/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/tutorial/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/data/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/data/cdisc/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/data/monolix/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/data/nonmem/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/estimation/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/estimation/bootstrap/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/estimation/comparison/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/estimation/diagnostics/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/estimation/foce/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/estimation/laplacian/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/estimation/saem/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pd/direct-emax/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pd/disease-progression/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pd/effect-compartment/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pd/indirect-response/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pd/sigmoid-emax/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pd/tolerance/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pd/transit-pd/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/autoinduction/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/enterohepatic/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/iv-bolus/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/michaelis-menten/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/oral/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/parallel-absorption/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/threecomp/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/tmdd/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/transit/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/twocomp-iv/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/models/pk/twocomp-oral/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/nca/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/nca/bioequivalence/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/nca/config/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/nca/population/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/nca/run-nca/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/population/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/population/covariates/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/population/iv-bolus/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/population/oral/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/trial/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/trial/designs/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/trial/dosing/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/trial/population/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/trial/power/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/backends/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/bootstrap/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/estimation/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/nca/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/pk/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/pkpd/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/population/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/sensitivity/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/trial/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/viz/vpc/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/vpc/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/vpc/binning/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/python/vpc/blq/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
     <url>
          <loc>https://shramish2057.github.io/NeoPKPD/reference/glossary/</loc>
-         <lastmod>2026-01-12</lastmod>
+         <lastmod>2026-01-17</lastmod>
     </url>
 </urlset>

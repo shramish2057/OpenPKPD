@@ -1,5 +1,5 @@
 # Basic CDISC Data Import - Julia Example
-# Run: julia --project=core/NeoPKPD load.jl
+# Run: julia --project=packages/core load.jl
 
 using NeoPKPD
 

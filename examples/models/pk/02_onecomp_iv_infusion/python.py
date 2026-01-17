@@ -5,7 +5,7 @@ One-Compartment IV Infusion Model - Python Example
 Run: python python.py
 """
 
-from neopkpd import simulate, create_model_spec
+import neopkpd
 import numpy as np
 
 
@@ -13,32 +13,31 @@ def main():
     print("One-Compartment IV Infusion Model")
     print("=" * 50)
 
+    # Initialize Julia backend (required once per session)
+    neopkpd.init_julia()
+
     # Model parameters
     CL = 5.0        # Clearance (L/h)
     V = 50.0        # Volume of distribution (L)
     Dose = 100.0    # mg
     Duration = 1.0  # Infusion duration (h)
 
-    # Create model specification with infusion
-    model = create_model_spec(
-        "OneCompIVBolus",  # Same structural model, dose event handles infusion
-        name="onecomp_iv_infusion_example",
-        params={"CL": CL, "V": V},
-        doses=[{"time": 0.0, "amount": Dose, "duration": Duration}]
-    )
-
-    # Run simulation with dense sampling during infusion
-    print("\nRunning simulation...")
+    # Dense sampling during and after infusion
     saveat = list(np.arange(0.0, 2.1, 0.1)) + list(np.arange(2.5, 24.5, 0.5))
-    result = simulate(
-        model,
-        t_start=0.0,
-        t_end=24.0,
+
+    # Run simulation with infusion (use duration parameter)
+    print("\nRunning simulation...")
+    result = neopkpd.simulate_pk_iv_bolus(
+        cl=CL,
+        v=V,
+        doses=[{"time": 0.0, "amount": Dose, "duration": Duration}],
+        t0=0.0,
+        t1=24.0,
         saveat=saveat
     )
 
     # Extract results
-    times = np.array(result["t"])
+    times = np.array(result["times"])
     conc = np.array(result["observations"]["conc"])
 
     # Compute metrics

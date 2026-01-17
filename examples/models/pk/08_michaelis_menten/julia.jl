@@ -1,5 +1,5 @@
 # Michaelis-Menten Elimination Model - Julia Example
-# Run: julia --project=core/NeoPKPD julia.jl
+# Run: julia --project=packages/core julia.jl
 
 using NeoPKPD
 
