@@ -45,13 +45,14 @@ NeoPKPD provides native implementations in both **Julia** (high-performance core
 
     neopkpd.init_julia()
 
-    result = neopkpd.simulate_pk_oral(
+    result = neopkpd.simulate_pk_oral_first_order(
         ka=1.5, cl=5.0, v=50.0,
         doses=[{"time": 0.0, "amount": 100.0}],
-        t0=0.0, t1=24.0, saveat=0.5
+        t0=0.0, t1=24.0,
+        saveat=[0.0, 0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0]
     )
 
-    print(f"Cmax: {max(result['concentrations']):.2f} mg/L")
+    print(f"Cmax: {max(result['observations']['conc']):.2f} mg/L")
     ```
 
 === "Julia"
@@ -150,19 +151,19 @@ Every simulation produces deterministic, versioned artifacts:
     neopkpd.init_julia()
 
     # Simulate one-compartment oral PK
-    result = neopkpd.simulate_pk_oral(
+    result = neopkpd.simulate_pk_oral_first_order(
         ka=1.5,      # Absorption rate constant (1/hr)
         cl=5.0,      # Clearance (L/hr)
         v=50.0,      # Volume of distribution (L)
         doses=[{"time": 0.0, "amount": 100.0}],
         t0=0.0,
         t1=24.0,
-        saveat=0.5
+        saveat=[0.0, 0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0]
     )
 
     # Access results
     print(f"Time points: {len(result['times'])}")
-    print(f"Cmax: {max(result['concentrations']):.2f} mg/L")
+    print(f"Cmax: {max(result['observations']['conc']):.2f} mg/L")
 
     # Visualize
     viz.set_backend("matplotlib")

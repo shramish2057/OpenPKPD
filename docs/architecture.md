@@ -90,7 +90,7 @@ Every simulation can produce a JSON artifact that:
 
 ## Module Structure
 
-### Core (`core/NeoPKPD/`)
+### Core (`packages/core/`)
 
 ```
 src/

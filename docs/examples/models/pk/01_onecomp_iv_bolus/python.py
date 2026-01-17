@@ -5,7 +5,7 @@ One-Compartment IV Bolus Model - Python Example
 Run: python python.py
 """
 
-from neopkpd import simulate, create_model_spec
+import neopkpd
 import numpy as np
 
 
@@ -13,30 +13,27 @@ def main():
     print("One-Compartment IV Bolus Model")
     print("=" * 50)
 
+    # Initialize Julia backend (required once per session)
+    neopkpd.init_julia()
+
     # Model parameters
     CL = 5.0   # Clearance (L/h)
     V = 50.0   # Volume of distribution (L)
     Dose = 100.0  # mg
 
-    # Create model specification
-    model = create_model_spec(
-        "OneCompIVBolus",
-        name="onecomp_iv_bolus_example",
-        params={"CL": CL, "V": V},
-        doses=[{"time": 0.0, "amount": Dose}]
-    )
-
-    # Run simulation
+    # Run simulation using the actual API
     print("\nRunning simulation...")
-    result = simulate(
-        model,
-        t_start=0.0,
-        t_end=48.0,
-        saveat=0.5
+    result = neopkpd.simulate_pk_iv_bolus(
+        cl=CL,
+        v=V,
+        doses=[{"time": 0.0, "amount": Dose}],
+        t0=0.0,
+        t1=48.0,
+        saveat=[float(t) for t in np.arange(0.0, 48.5, 0.5)]
     )
 
     # Extract results
-    times = np.array(result["t"])
+    times = np.array(result["times"])
     conc = np.array(result["observations"]["conc"])
 
     # Compute metrics

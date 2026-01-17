@@ -7,36 +7,39 @@ Run:
     python docs/examples/quickstart/python_first_simulation.py
 """
 
-from neopkpd import simulate, create_model_spec
+import neopkpd
 import numpy as np
+
 
 def main():
     print("NeoPKPD Quickstart - Python")
     print("=" * 40)
 
-    # 1. Create a one-compartment IV bolus model
-    model = create_model_spec(
-        "OneCompIVBolus",
-        name="quickstart_example",
-        params={"CL": 5.0, "V": 50.0},
-        doses=[{"time": 0.0, "amount": 100.0}]
-    )
+    # Initialize Julia backend (required once per session)
+    neopkpd.init_julia()
 
-    print(f"\nModel: {model['kind']}")
-    print(f"Parameters: CL = {model['params']['CL']} L/h, V = {model['params']['V']} L")
-    print(f"Dose: {model['doses'][0]['amount']} mg IV at t=0")
+    # 1. Define model parameters
+    CL = 5.0   # Clearance (L/h)
+    V = 50.0   # Volume of distribution (L)
+    Dose = 100.0  # mg
+
+    print(f"\nModel: OneCompIVBolus")
+    print(f"Parameters: CL = {CL} L/h, V = {V} L")
+    print(f"Dose: {Dose} mg IV at t=0")
 
     # 2. Run simulation (0-24h with 0.5h intervals)
     print("\nRunning simulation...")
-    result = simulate(
-        model,
-        t_start=0.0,
-        t_end=24.0,
-        saveat=0.5
+    result = neopkpd.simulate_pk_iv_bolus(
+        cl=CL,
+        v=V,
+        doses=[{"time": 0.0, "amount": Dose}],
+        t0=0.0,
+        t1=24.0,
+        saveat=[float(t) for t in np.arange(0.0, 24.5, 0.5)]
     )
 
     # 3. Extract results
-    times = np.array(result["t"])
+    times = np.array(result["times"])
     conc = np.array(result["observations"]["conc"])
 
     # 4. Compute metrics

@@ -13,7 +13,7 @@ Ensure you have:
 - Julia dependencies installed
 
 ```bash
-julia --project=core/NeoPKPD -e 'using Pkg; Pkg.instantiate()'
+julia --project=packages/core -e 'using Pkg; Pkg.instantiate()'
 ```
 
 ---
@@ -24,7 +24,7 @@ julia --project=core/NeoPKPD -e 'using Pkg; Pkg.instantiate()'
 
 ```julia
 # Start Julia with the project
-# julia --project=core/NeoPKPD
+# julia --project=packages/core
 
 using NeoPKPD
 ```

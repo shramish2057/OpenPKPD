@@ -368,7 +368,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@v1
-      - run: julia --project=core/NeoPKPD -e 'using Pkg; Pkg.instantiate()'
+      - run: julia --project=packages/core -e 'using Pkg; Pkg.instantiate()'
       - run: ./bin/neopkpd validate-golden
 ```
 
@@ -388,7 +388,7 @@ done
 
 ```bash
 # Generate new artifact
-julia --project=core/NeoPKPD my_simulation.jl
+julia --project=packages/core my_simulation.jl
 
 # Compare with golden
 diff <(jq -S . validation/golden/pk_iv_bolus.json) <(jq -S . my_artifact.json)
@@ -415,8 +415,8 @@ Error: ArgumentError: Package NeoPKPD not found
 **Solution**: Install dependencies:
 
 ```bash
-julia --project=core/NeoPKPD -e 'using Pkg; Pkg.instantiate()'
-julia --project=cli/NeoPKPDCLI -e 'using Pkg; Pkg.instantiate()'
+julia --project=packages/core -e 'using Pkg; Pkg.instantiate()'
+julia --project=packages/cli -e 'using Pkg; Pkg.instantiate()'
 ```
 
 ### Artifact Schema Mismatch

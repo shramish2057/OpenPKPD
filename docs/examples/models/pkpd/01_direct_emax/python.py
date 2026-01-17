@@ -5,13 +5,16 @@ Direct Emax PD Model - Python Example
 Run: python python.py
 """
 
-from neopkpd import simulate, create_model_spec
+import neopkpd
 import numpy as np
 
 
 def main():
     print("Direct Emax PD Model")
     print("=" * 50)
+
+    # Initialize Julia backend (required once per session)
+    neopkpd.init_julia()
 
     # PK parameters
     CL = 5.0   # L/h
@@ -23,28 +26,22 @@ def main():
     Emax = 100.0  # Maximum effect
     EC50 = 1.0    # mg/L
 
-    # Create PKPD model specification
-    model = create_model_spec(
-        "DirectEmax",
-        name="direct_emax_example",
-        params={
-            "CL": CL, "V": V,
-            "E0": E0, "Emax": Emax, "EC50": EC50
-        },
-        doses=[{"time": 0.0, "amount": Dose}]
-    )
-
-    # Run simulation
+    # Run PKPD simulation using the actual API
     print("\nRunning PKPD simulation...")
-    result = simulate(
-        model,
-        t_start=0.0,
-        t_end=48.0,
-        saveat=0.25
+    result = neopkpd.simulate_pkpd_direct_emax(
+        cl=CL,
+        v=V,
+        e0=E0,
+        emax=Emax,
+        ec50=EC50,
+        doses=[{"time": 0.0, "amount": Dose}],
+        t0=0.0,
+        t1=48.0,
+        saveat=[float(t) for t in np.arange(0.0, 48.25, 0.25)]
     )
 
     # Extract results
-    times = np.array(result["t"])
+    times = np.array(result["times"])
     conc = np.array(result["observations"]["conc"])
     effect = np.array(result["observations"]["effect"])
 

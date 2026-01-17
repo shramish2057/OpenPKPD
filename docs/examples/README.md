@@ -68,16 +68,20 @@ println("Cmax: ", maximum(result.observations["conc"]))
 ### Python (5 minutes)
 
 ```python
-from neopkpd import simulate, create_model_spec
+import neopkpd
 
-# Create model
-model = create_model_spec("OneCompIVBolus",
-    params={"CL": 5.0, "V": 50.0},
-    doses=[{"time": 0.0, "amount": 100.0}]
+# Initialize Julia backend (once per session)
+neopkpd.init_julia()
+
+# Simulate one-compartment IV bolus
+result = neopkpd.simulate_pk_iv_bolus(
+    cl=5.0,
+    v=50.0,
+    doses=[{"time": 0.0, "amount": 100.0}],
+    t0=0.0,
+    t1=24.0,
+    saveat=[0.0, 0.5, 1.0, 2.0, 4.0, 8.0, 12.0, 24.0]
 )
-
-# Simulate
-result = simulate(model, t_end=24.0, saveat=0.5)
 
 # Extract metrics
 print(f"Cmax: {max(result['observations']['conc'])}")
@@ -247,7 +251,7 @@ docs/examples/
 ./docs/examples/run_all.sh
 
 # Run specific category
-julia --project=core/NeoPKPD docs/examples/models/run_all.jl
+julia --project=packages/core docs/examples/models/run_all.jl
 python docs/examples/estimation/run_all.py
 ```
 
@@ -255,7 +259,7 @@ python docs/examples/estimation/run_all.py
 
 ```bash
 # Validate against expected outputs
-julia --project=core/NeoPKPD docs/examples/validate_outputs.jl
+julia --project=packages/core docs/examples/validate_outputs.jl
 ```
 
 ---

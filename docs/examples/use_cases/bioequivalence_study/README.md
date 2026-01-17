@@ -28,10 +28,10 @@ a test formulation against a reference formulation.
 
 ```bash
 # Run complete BE workflow
-julia --project=core/NeoPKPD docs/examples/use_cases/bioequivalence_study/run.jl
+julia --project=packages/core docs/examples/use_cases/bioequivalence_study/run.jl
 
 # Validate outputs
-julia --project=core/NeoPKPD docs/examples/use_cases/bioequivalence_study/validate.jl
+julia --project=packages/core docs/examples/use_cases/bioequivalence_study/validate.jl
 ```
 
 ## Expected Results

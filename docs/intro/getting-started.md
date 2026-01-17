@@ -97,7 +97,7 @@ cd neopkpd
 
 ```bash
 # Activate and instantiate the Julia project
-julia --project=core/NeoPKPD -e 'using Pkg; Pkg.instantiate()'
+julia --project=packages/core -e 'using Pkg; Pkg.instantiate()'
 ```
 
 This installs all Julia dependencies including:
@@ -128,8 +128,8 @@ This installs:
 
 === "Julia"
 
-    ```julia
-    julia --project=core/NeoPKPD
+    ```bash
+    julia --project=packages/core
 
     julia> using NeoPKPD
     julia> println(version())

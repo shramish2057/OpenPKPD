@@ -246,11 +246,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          julia --project=core/NeoPKPD -e 'using Pkg; Pkg.instantiate()'
+          julia --project=packages/core -e 'using Pkg; Pkg.instantiate()'
 
       - name: Run tests
         run: |
-          julia --project=core/NeoPKPD -e 'using Pkg; Pkg.test()'
+          julia --project=packages/core -e 'using Pkg; Pkg.test()'
 
       - name: Validate golden artifacts
         run: |

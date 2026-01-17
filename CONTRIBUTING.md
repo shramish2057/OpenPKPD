@@ -31,10 +31,10 @@ git clone https://github.com/neopkpd/neopkpd.git
 cd neopkpd
 
 # Install Julia dependencies
-julia --project=core/NeoPKPD -e 'using Pkg; Pkg.instantiate()'
+julia --project=packages/core -e 'using Pkg; Pkg.instantiate()'
 
 # Run tests
-julia --project=core/NeoPKPD -e 'using Pkg; Pkg.test()'
+julia --project=packages/core -e 'using Pkg; Pkg.test()'
 
 # (Optional) Set up Python development
 cd python
@@ -48,7 +48,7 @@ pytest tests/
 
 ```
 neopkpd/
-├── core/NeoPKPD/    # Core Julia package
+├── packages/core/    # Core Julia package
 ├── cli/NeoPKPDCLI/      # Command-line interface
 ├── python/               # Python bindings
 ├── docs/                 # Documentation (MkDocs)
@@ -103,7 +103,7 @@ Every PR must include:
 
 ### Checklist
 
-- [ ] Tests pass: `julia --project=core/NeoPKPD -e 'using Pkg; Pkg.test()'`
+- [ ] Tests pass: `julia --project=packages/core -e 'using Pkg; Pkg.test()'`
 - [ ] Golden validation passes: `./bin/neopkpd validate-golden`
 - [ ] Documentation builds: `mkdocs build --strict`
 - [ ] Python tests pass (if applicable): `cd python && pytest tests/`
@@ -131,7 +131,7 @@ NeoPKPD uses three semantic versions:
 
 If your change affects numerical output:
 
-1. Increment appropriate version in `core/NeoPKPD/src/engine/`
+1. Increment appropriate version in `packages/core/src/engine/`
 2. Regenerate golden artifacts: `julia validation/scripts/generate_golden_artifacts.jl`
 3. Document the change in CHANGELOG.md
 
@@ -139,7 +139,7 @@ If your change affects numerical output:
 
 ### New PK Model
 
-1. Create `core/NeoPKPD/src/models/new_model.jl`
+1. Create `packages/core/src/models/new_model.jl`
 2. Implement required interface (see `pk_interface.jl`)
 3. Add serialization support
 4. Add tests
@@ -148,7 +148,7 @@ If your change affects numerical output:
 
 ### New PD Model
 
-1. Create `core/NeoPKPD/src/pd/new_pd.jl`
+1. Create `packages/core/src/pd/new_pd.jl`
 2. Implement required interface
 3. Add serialization support
 4. Add tests

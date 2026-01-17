@@ -28,10 +28,10 @@ This use case demonstrates a complete PK analysis workflow:
 
 ```bash
 # Run complete workflow
-julia --project=core/NeoPKPD docs/examples/use_cases/real_world_theophylline/run.jl
+julia --project=packages/core docs/examples/use_cases/real_world_theophylline/run.jl
 
 # Validate outputs
-julia --project=core/NeoPKPD docs/examples/use_cases/real_world_theophylline/validate.jl
+julia --project=packages/core docs/examples/use_cases/real_world_theophylline/validate.jl
 ```
 
 ## Expected Results

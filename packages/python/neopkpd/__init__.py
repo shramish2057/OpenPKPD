@@ -138,6 +138,10 @@ from .simulations.pkpd import (
     # Tolerance models
     simulate_pkpd_tolerance_counter_regulation,
     simulate_pkpd_receptor_regulation,
+    # Combination effect models
+    simulate_pkpd_bliss_independence,
+    simulate_pkpd_competitive_inhibition,
+    simulate_pkpd_drug_interaction,
 )
 
 # Simulations - Population

@@ -78,11 +78,23 @@ Estimate power through simulation.
 
 # Example
 ```julia
-function sim_trial(n, effect; rng=nothing)
-    # Simulate and return p-value
-    return rand() < 0.8 ? 0.01 : 0.50  # Placeholder
+# Define a simulation function that returns a p-value
+function sim_two_sample_ttest(n, effect; rng=nothing, sd=1.0)
+    rng = isnothing(rng) ? Random.default_rng() : rng
+    # Generate two groups
+    group1 = randn(rng, n)
+    group2 = randn(rng, n) .+ effect  # Shift by effect size
+    # Calculate t-test p-value
+    m1, m2 = mean(group1), mean(group2)
+    s1, s2 = std(group1), std(group2)
+    se = sqrt(s1^2/n + s2^2/n)
+    t_stat = (m2 - m1) / se
+    df = 2*n - 2
+    # Two-sided p-value (approximation)
+    p_value = 2 * (1 - cdf(TDist(df), abs(t_stat)))
+    return p_value
 end
-result = estimate_power(sim_trial, 50, 0.5; n_replicates=1000)
+result = estimate_power(sim_two_sample_ttest, 50, 0.5; n_replicates=1000)
 ```
 """
 function estimate_power(simulate_func::Function, n_per_arm::Int, effect_size::Float64;

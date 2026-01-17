@@ -1,5 +1,5 @@
 # NeoPKPD Quickstart - Julia
-# Run: julia --project=core/NeoPKPD docs/examples/quickstart/julia_first_simulation.jl
+# Run: julia --project=packages/core docs/examples/quickstart/julia_first_simulation.jl
 
 using NeoPKPD
 

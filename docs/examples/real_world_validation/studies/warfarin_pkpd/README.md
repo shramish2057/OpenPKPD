@@ -66,7 +66,7 @@ Summary:
 
 ```bash
 # Run simulation (from repository root)
-julia --project=core/NeoPKPD \
+julia --project=packages/core \
   docs/examples/real_world_validation/datasets/warfarin_nlmixr2data/run.jl
 
 # Copy to expected (first time or when regenerating)
@@ -75,7 +75,7 @@ cp docs/examples/real_world_validation/studies/warfarin_pkpd/output/*.json \
    docs/examples/real_world_validation/studies/warfarin_pkpd/expected/
 
 # Validate
-julia --project=core/NeoPKPD \
+julia --project=packages/core \
   docs/examples/real_world_validation/datasets/warfarin_nlmixr2data/validate.jl
 ```
 

@@ -5,13 +5,16 @@ Two-Compartment IV Bolus Model - Python Example
 Run: python python.py
 """
 
-from neopkpd import simulate, create_model_spec
+import neopkpd
 import numpy as np
 
 
 def main():
     print("Two-Compartment IV Bolus Model")
     print("=" * 50)
+
+    # Initialize Julia backend (required once per session)
+    neopkpd.init_julia()
 
     # Model parameters
     CL = 5.0   # Clearance (L/h)
@@ -20,26 +23,24 @@ def main():
     V2 = 40.0  # Peripheral volume (L)
     Dose = 100.0  # mg
 
-    # Create model specification
-    model = create_model_spec(
-        "TwoCompIVBolus",
-        name="twocomp_iv_example",
-        params={"CL": CL, "V1": V1, "Q": Q, "V2": V2},
-        doses=[{"time": 0.0, "amount": Dose}]
-    )
-
-    # Run simulation with dense early sampling
-    print("\nRunning simulation...")
+    # Dense early sampling for distribution phase
     saveat = list(np.arange(0.0, 1.0, 0.05)) + list(np.arange(1.0, 48.5, 0.25))
-    result = simulate(
-        model,
-        t_start=0.0,
-        t_end=48.0,
+
+    # Run simulation using the actual API
+    print("\nRunning simulation...")
+    result = neopkpd.simulate_pk_twocomp_iv_bolus(
+        cl=CL,
+        v1=V1,
+        q=Q,
+        v2=V2,
+        doses=[{"time": 0.0, "amount": Dose}],
+        t0=0.0,
+        t1=48.0,
         saveat=saveat
     )
 
     # Extract results
-    times = np.array(result["t"])
+    times = np.array(result["times"])
     conc = np.array(result["observations"]["conc"])
 
     # Compute metrics

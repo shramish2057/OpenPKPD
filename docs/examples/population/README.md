@@ -72,7 +72,7 @@ Each example contains:
 
 ```bash
 # Julia
-julia --project=core/NeoPKPD docs/examples/population/01_basic_iiv/julia.jl
+julia --project=packages/core docs/examples/population/01_basic_iiv/julia.jl
 
 # Python
 python docs/examples/population/01_basic_iiv/python.py

@@ -41,14 +41,14 @@ Each model directory contains:
 ### All Models (Julia)
 
 ```bash
-julia --project=core/NeoPKPD docs/examples/models/run_all.jl
+julia --project=packages/core docs/examples/models/run_all.jl
 ```
 
 ### Single Model
 
 ```bash
 # Julia
-julia --project=core/NeoPKPD docs/examples/models/pk/01_onecomp_iv_bolus/julia.jl
+julia --project=packages/core docs/examples/models/pk/01_onecomp_iv_bolus/julia.jl
 
 # Python
 python docs/examples/models/pk/01_onecomp_iv_bolus/python.py

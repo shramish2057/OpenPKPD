@@ -8,7 +8,7 @@ Releases are intentional and conservative.
 2. Decide release type (PATCH, MINOR, MAJOR).
 3. Update:
    - VERSION
-   - core/NeoPKPD/src/NeoPKPD.jl
+   - packages/core/src/NeoPKPD.jl
    - CHANGELOG.md
 4. If MAJOR:
    - Bump semantics version constants

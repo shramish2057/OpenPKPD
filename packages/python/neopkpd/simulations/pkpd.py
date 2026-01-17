@@ -1214,3 +1214,440 @@ def simulate_pkpd_receptor_regulation(
 
     res = jl.NeoPKPD.simulate_pkpd_coupled(pk_spec, pd_spec, grid, solver)
     return _simresult_to_py(res)
+
+
+# =============================================================================
+# Combination Effect Models
+# =============================================================================
+
+def simulate_pkpd_bliss_independence(
+    # Drug A PK parameters
+    cl_a: float,
+    v_a: float,
+    doses_a: List[Dict[str, Union[float, int]]],
+    # Drug B PK parameters
+    cl_b: float,
+    v_b: float,
+    doses_b: List[Dict[str, Union[float, int]]],
+    # PD parameters
+    e0: float,
+    emax_a: float,
+    ec50_a: float,
+    gamma_a: float,
+    emax_b: float,
+    ec50_b: float,
+    gamma_b: float,
+    # Simulation settings
+    t0: float,
+    t1: float,
+    saveat: List[float],
+    pk_kind_a: str = "OneCompIVBolus",
+    pk_kind_b: str = "OneCompIVBolus",
+    ka_a: Optional[float] = None,
+    ka_b: Optional[float] = None,
+    alg: str = "Tsit5",
+    reltol: float = 1e-10,
+    abstol: float = 1e-12,
+    maxiters: int = 10**7,
+) -> Dict[str, Any]:
+    """
+    Run a combination PK-PD simulation with Bliss Independence model.
+
+    Bliss Independence assumes two drugs act independently through separate
+    mechanisms. The combined effect is:
+        f_combined = f_A + f_B - f_A × f_B
+
+    where f_A and f_B are fractional effects (0-1 scale).
+
+    PD equations:
+        f_A = C_A^γ_A / (EC50_A^γ_A + C_A^γ_A)
+        f_B = C_B^γ_B / (EC50_B^γ_B + C_B^γ_B)
+        E = E0 + f_combined × max(Emax_A, Emax_B)
+
+    Clinical Applications:
+        - Combination chemotherapy
+        - Antibacterial combinations
+        - Multi-target therapies
+
+    Args:
+        cl_a: Clearance for drug A
+        v_a: Volume of distribution for drug A
+        doses_a: Dose events for drug A
+        cl_b: Clearance for drug B
+        v_b: Volume of distribution for drug B
+        doses_b: Dose events for drug B
+        e0: Baseline effect
+        emax_a: Maximum effect for drug A
+        ec50_a: EC50 for drug A
+        gamma_a: Hill coefficient for drug A
+        emax_b: Maximum effect for drug B
+        ec50_b: EC50 for drug B
+        gamma_b: Hill coefficient for drug B
+        t0: Simulation start time
+        t1: Simulation end time
+        saveat: Time points for output
+        pk_kind_a: PK model type for drug A
+        pk_kind_b: PK model type for drug B
+        ka_a: Absorption rate for drug A (if oral)
+        ka_b: Absorption rate for drug B (if oral)
+        alg: ODE solver algorithm
+        reltol: Relative tolerance
+        abstol: Absolute tolerance
+        maxiters: Maximum solver iterations
+
+    Returns:
+        Dict with keys:
+        - times: Time points
+        - observations: Dict with conc_a, conc_b, effect
+        - metadata: Run metadata
+
+    Example:
+        >>> result = neopkpd.simulate_pkpd_bliss_independence(
+        ...     cl_a=1.0, v_a=10.0, doses_a=[{"time": 0.0, "amount": 100.0}],
+        ...     cl_b=2.0, v_b=20.0, doses_b=[{"time": 0.0, "amount": 50.0}],
+        ...     e0=0.0, emax_a=80.0, ec50_a=5.0, gamma_a=1.0,
+        ...     emax_b=60.0, ec50_b=3.0, gamma_b=1.0,
+        ...     t0=0.0, t1=24.0, saveat=list(range(25))
+        ... )
+    """
+    jl = _require_julia()
+
+    import numpy as np
+
+    # Simulate PK for drug A
+    pk_spec_a = _create_pk_spec(jl, pk_kind_a, cl_a, v_a, ka_a, doses_a)
+    grid = jl.NeoPKPD.SimGrid(float(t0), float(t1), [float(x) for x in saveat])
+    solver = jl.NeoPKPD.SolverSpec(jl.Symbol(alg), float(reltol), float(abstol), int(maxiters))
+    res_a = jl.NeoPKPD.simulate(pk_spec_a, grid, solver)
+    conc_a = np.array([float(x) for x in res_a.observations[jl.Symbol("conc")]])
+
+    # Simulate PK for drug B
+    pk_spec_b = _create_pk_spec(jl, pk_kind_b, cl_b, v_b, ka_b, doses_b)
+    res_b = jl.NeoPKPD.simulate(pk_spec_b, grid, solver)
+    conc_b = np.array([float(x) for x in res_b.observations[jl.Symbol("conc")]])
+
+    # Calculate Bliss Independence combined effect
+    times = np.array([float(x) for x in res_a.t])
+    effect = np.zeros(len(times))
+
+    for i in range(len(times)):
+        c_a = max(conc_a[i], 0.0)
+        c_b = max(conc_b[i], 0.0)
+
+        # Fractional effects
+        if c_a <= 0.0:
+            f_a = 0.0
+        else:
+            ratio_a = (ec50_a / c_a) ** gamma_a
+            f_a = 1.0 / (1.0 + ratio_a)
+
+        if c_b <= 0.0:
+            f_b = 0.0
+        else:
+            ratio_b = (ec50_b / c_b) ** gamma_b
+            f_b = 1.0 / (1.0 + ratio_b)
+
+        # Bliss Independence
+        f_combined = f_a + f_b - f_a * f_b
+        emax_combined = max(emax_a, emax_b)
+        effect[i] = e0 + f_combined * emax_combined
+
+    return {
+        "times": times.tolist(),
+        "observations": {
+            "conc_a": conc_a.tolist(),
+            "conc_b": conc_b.tolist(),
+            "effect": effect.tolist(),
+        },
+        "metadata": {
+            "model": "BlissIndependence",
+            "pk_kind_a": pk_kind_a,
+            "pk_kind_b": pk_kind_b,
+        }
+    }
+
+
+def simulate_pkpd_competitive_inhibition(
+    # Drug PK parameters
+    cl_drug: float,
+    v_drug: float,
+    doses_drug: List[Dict[str, Union[float, int]]],
+    # Inhibitor PK parameters
+    cl_inhib: float,
+    v_inhib: float,
+    doses_inhib: List[Dict[str, Union[float, int]]],
+    # PD parameters
+    e0: float,
+    emax: float,
+    ec50: float,
+    gamma: float,
+    ki: float,
+    # Simulation settings
+    t0: float,
+    t1: float,
+    saveat: List[float],
+    pk_kind_drug: str = "OneCompIVBolus",
+    pk_kind_inhib: str = "OneCompIVBolus",
+    ka_drug: Optional[float] = None,
+    ka_inhib: Optional[float] = None,
+    alg: str = "Tsit5",
+    reltol: float = 1e-10,
+    abstol: float = 1e-12,
+    maxiters: int = 10**7,
+) -> Dict[str, Any]:
+    """
+    Run a PK-PD simulation with Competitive Inhibition model.
+
+    Models the effect of a competitive inhibitor on drug action.
+    The inhibitor competes for the same binding site, shifting the EC50.
+
+    PD equation:
+        EC50_apparent = EC50 × (1 + I/Ki)
+        E = E0 + Emax × C^γ / (EC50_apparent^γ + C^γ)
+
+    Clinical Applications:
+        - Drug-drug interactions
+        - Receptor antagonism
+        - Enzyme inhibition
+
+    Args:
+        cl_drug: Clearance for the drug (agonist)
+        v_drug: Volume of distribution for the drug
+        doses_drug: Dose events for the drug
+        cl_inhib: Clearance for the inhibitor
+        v_inhib: Volume of distribution for the inhibitor
+        doses_inhib: Dose events for the inhibitor
+        e0: Baseline effect
+        emax: Maximum effect
+        ec50: Intrinsic EC50 (without inhibitor)
+        gamma: Hill coefficient
+        ki: Inhibitor binding constant (lower = more potent inhibitor)
+        t0: Simulation start time
+        t1: Simulation end time
+        saveat: Time points for output
+        pk_kind_drug: PK model type for drug
+        pk_kind_inhib: PK model type for inhibitor
+        ka_drug: Absorption rate for drug (if oral)
+        ka_inhib: Absorption rate for inhibitor (if oral)
+        alg: ODE solver algorithm
+        reltol: Relative tolerance
+        abstol: Absolute tolerance
+        maxiters: Maximum solver iterations
+
+    Returns:
+        Dict with keys:
+        - times: Time points
+        - observations: Dict with conc_drug, conc_inhibitor, effect
+        - metadata: Run metadata
+
+    Example:
+        >>> result = neopkpd.simulate_pkpd_competitive_inhibition(
+        ...     cl_drug=1.0, v_drug=10.0, doses_drug=[{"time": 0.0, "amount": 100.0}],
+        ...     cl_inhib=0.5, v_inhib=15.0, doses_inhib=[{"time": 0.0, "amount": 50.0}],
+        ...     e0=0.0, emax=100.0, ec50=5.0, gamma=1.0, ki=2.0,
+        ...     t0=0.0, t1=24.0, saveat=list(range(25))
+        ... )
+    """
+    jl = _require_julia()
+
+    import numpy as np
+
+    # Simulate PK for drug
+    pk_spec_drug = _create_pk_spec(jl, pk_kind_drug, cl_drug, v_drug, ka_drug, doses_drug)
+    grid = jl.NeoPKPD.SimGrid(float(t0), float(t1), [float(x) for x in saveat])
+    solver = jl.NeoPKPD.SolverSpec(jl.Symbol(alg), float(reltol), float(abstol), int(maxiters))
+    res_drug = jl.NeoPKPD.simulate(pk_spec_drug, grid, solver)
+    conc_drug = np.array([float(x) for x in res_drug.observations[jl.Symbol("conc")]])
+
+    # Simulate PK for inhibitor
+    pk_spec_inhib = _create_pk_spec(jl, pk_kind_inhib, cl_inhib, v_inhib, ka_inhib, doses_inhib)
+    res_inhib = jl.NeoPKPD.simulate(pk_spec_inhib, grid, solver)
+    conc_inhib = np.array([float(x) for x in res_inhib.observations[jl.Symbol("conc")]])
+
+    # Calculate competitive inhibition effect
+    times = np.array([float(x) for x in res_drug.t])
+    effect = np.zeros(len(times))
+
+    for i in range(len(times)):
+        c = max(conc_drug[i], 0.0)
+        inhib = max(conc_inhib[i], 0.0)
+
+        # Apparent EC50 with competitive inhibition
+        ec50_apparent = ec50 * (1.0 + inhib / ki)
+
+        if c <= 0.0:
+            effect[i] = e0
+        else:
+            c_gamma = c ** gamma
+            ec50_app_gamma = ec50_apparent ** gamma
+            effect[i] = e0 + emax * c_gamma / (ec50_app_gamma + c_gamma)
+
+    return {
+        "times": times.tolist(),
+        "observations": {
+            "conc_drug": conc_drug.tolist(),
+            "conc_inhibitor": conc_inhib.tolist(),
+            "effect": effect.tolist(),
+        },
+        "metadata": {
+            "model": "CompetitiveInhibition",
+            "pk_kind_drug": pk_kind_drug,
+            "pk_kind_inhib": pk_kind_inhib,
+        }
+    }
+
+
+def simulate_pkpd_drug_interaction(
+    # Drug A PK parameters
+    cl_a: float,
+    v_a: float,
+    doses_a: List[Dict[str, Union[float, int]]],
+    # Drug B PK parameters
+    cl_b: float,
+    v_b: float,
+    doses_b: List[Dict[str, Union[float, int]]],
+    # PD parameters
+    e0: float,
+    emax: float,
+    ec50_a: float,
+    ec50_b: float,
+    psi: float,
+    # Simulation settings
+    t0: float,
+    t1: float,
+    saveat: List[float],
+    pk_kind_a: str = "OneCompIVBolus",
+    pk_kind_b: str = "OneCompIVBolus",
+    ka_a: Optional[float] = None,
+    ka_b: Optional[float] = None,
+    alg: str = "Tsit5",
+    reltol: float = 1e-10,
+    abstol: float = 1e-12,
+    maxiters: int = 10**7,
+) -> Dict[str, Any]:
+    """
+    Run a combination PK-PD simulation with Drug Interaction (Greco) model.
+
+    The Greco model quantifies synergy or antagonism between two drugs
+    using an interaction parameter (psi/ψ).
+
+    PD equation (Greco model, γ=1):
+        a = C_A / EC50_A
+        b = C_B / EC50_B
+        interaction = ψ × a × b
+        E = E0 + Emax × (a + b + interaction) / (1 + a + b + interaction)
+
+    Interaction parameter ψ:
+        - ψ > 0: Synergy (greater than additive effect)
+        - ψ = 0: Additivity (Loewe additivity)
+        - ψ < 0: Antagonism (less than additive effect)
+
+    Clinical Applications:
+        - Synergy detection in combination therapy
+        - Drug interaction studies
+        - Isobologram analysis
+
+    Args:
+        cl_a: Clearance for drug A
+        v_a: Volume of distribution for drug A
+        doses_a: Dose events for drug A
+        cl_b: Clearance for drug B
+        v_b: Volume of distribution for drug B
+        doses_b: Dose events for drug B
+        e0: Baseline effect
+        emax: Maximum combined effect
+        ec50_a: EC50 for drug A
+        ec50_b: EC50 for drug B
+        psi: Interaction parameter (>0 synergy, <0 antagonism, =0 additive)
+        t0: Simulation start time
+        t1: Simulation end time
+        saveat: Time points for output
+        pk_kind_a: PK model type for drug A
+        pk_kind_b: PK model type for drug B
+        ka_a: Absorption rate for drug A (if oral)
+        ka_b: Absorption rate for drug B (if oral)
+        alg: ODE solver algorithm
+        reltol: Relative tolerance
+        abstol: Absolute tolerance
+        maxiters: Maximum solver iterations
+
+    Returns:
+        Dict with keys:
+        - times: Time points
+        - observations: Dict with conc_a, conc_b, effect
+        - metadata: Run metadata including synergy classification
+
+    Example:
+        >>> # Synergistic combination (psi > 0)
+        >>> result = neopkpd.simulate_pkpd_drug_interaction(
+        ...     cl_a=1.0, v_a=10.0, doses_a=[{"time": 0.0, "amount": 50.0}],
+        ...     cl_b=2.0, v_b=20.0, doses_b=[{"time": 0.0, "amount": 30.0}],
+        ...     e0=0.0, emax=100.0, ec50_a=5.0, ec50_b=3.0, psi=2.0,
+        ...     t0=0.0, t1=24.0, saveat=list(range(25))
+        ... )
+        >>> print(f"Max effect: {max(result['observations']['effect']):.1f}")
+    """
+    jl = _require_julia()
+
+    import numpy as np
+
+    # Simulate PK for drug A
+    pk_spec_a = _create_pk_spec(jl, pk_kind_a, cl_a, v_a, ka_a, doses_a)
+    grid = jl.NeoPKPD.SimGrid(float(t0), float(t1), [float(x) for x in saveat])
+    solver = jl.NeoPKPD.SolverSpec(jl.Symbol(alg), float(reltol), float(abstol), int(maxiters))
+    res_a = jl.NeoPKPD.simulate(pk_spec_a, grid, solver)
+    conc_a = np.array([float(x) for x in res_a.observations[jl.Symbol("conc")]])
+
+    # Simulate PK for drug B
+    pk_spec_b = _create_pk_spec(jl, pk_kind_b, cl_b, v_b, ka_b, doses_b)
+    res_b = jl.NeoPKPD.simulate(pk_spec_b, grid, solver)
+    conc_b = np.array([float(x) for x in res_b.observations[jl.Symbol("conc")]])
+
+    # Calculate Greco drug interaction effect
+    times = np.array([float(x) for x in res_a.t])
+    effect = np.zeros(len(times))
+
+    for i in range(len(times)):
+        c_a = max(conc_a[i], 0.0)
+        c_b = max(conc_b[i], 0.0)
+
+        # Normalized concentrations
+        a = c_a / ec50_a
+        b = c_b / ec50_b
+
+        # Interaction term (Greco model)
+        interaction = psi * a * b
+
+        # Combined effect
+        numerator = a + b + interaction
+        denominator = 1.0 + a + b + interaction
+
+        if denominator <= 0.0:
+            # Handle edge case (strong antagonism)
+            effect[i] = e0
+        else:
+            effect[i] = e0 + emax * numerator / denominator
+
+    # Classify interaction type
+    if psi > 0.1:
+        interaction_type = "synergy"
+    elif psi < -0.1:
+        interaction_type = "antagonism"
+    else:
+        interaction_type = "additive"
+
+    return {
+        "times": times.tolist(),
+        "observations": {
+            "conc_a": conc_a.tolist(),
+            "conc_b": conc_b.tolist(),
+            "effect": effect.tolist(),
+        },
+        "metadata": {
+            "model": "DrugInteraction_Greco",
+            "pk_kind_a": pk_kind_a,
+            "pk_kind_b": pk_kind_b,
+            "psi": psi,
+            "interaction_type": interaction_type,
+        }
+    }
